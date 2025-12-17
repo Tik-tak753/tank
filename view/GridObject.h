@@ -9,12 +9,12 @@
 class TileMap;
 
 /*
- * Состояния объекта (FSM)
+ * Стани об'єкта (FSM)
  */
 enum class ObjectState {
-    Idle,        // стоит
-    Patrol,     // случайное движение
-    FollowPath  // движение по пути (BFS)
+    Idle,        // стоїть
+    Patrol,      // випадковий рух
+    FollowPath   // рух за шляхом (BFS)
 };
 
 class GridObject : public QGraphicsRectItem
@@ -26,39 +26,39 @@ public:
     void setState(ObjectState state);
     ObjectState state() const;
 
-    // вызывается таймером
+    // викликається таймером
     void update();
 
     // --- BFS ---
     void setPath(const QList<QPoint>& path);
 
-    // текущая клетка (для BFS старта)
+    // поточна клітинка (для BFS старту)
     QPoint cell() const;
 
 private:
-    // --- шаги состояний ---
+    // --- кроки станів ---
     void patrolStep();
     void followPathStep();
 
-    // --- движение ---
+    // --- рух ---
     void tryMove(int newX, int newY);
     void updatePosition();
 
 private:
-    // целочисленные координаты клетки
+    // цілочисельні координати клітинки
     int m_gridX;
     int m_gridY;
 
-    // плавная позиция (в пикселях)
+    // плавна позиція (у пікселях)
     QPointF m_pos;
 
-    // цель движения (центр следующей клетки)
+    // ціль руху (центр наступної клітинки)
     QPointF m_targetPos;
 
-    // флаг движения
+    // прапорець руху
     bool m_moving = false;
 
-    // скорость (пикселей за тик таймера)
+    // швидкість (пікселів за тик таймера)
     qreal m_speed = 4.0;
 
     TileMap* m_map = nullptr;
@@ -66,7 +66,7 @@ private:
     // FSM
     ObjectState m_state = ObjectState::Idle;
 
-    // путь для FollowPath
+    // шлях для FollowPath
     QList<QPoint> m_path;
 };
 

@@ -7,7 +7,7 @@
 #include <QtMath>
 
 /* =======================
- * Constructor
+ * Конструктор
  * ======================= */
 
 GridObject::GridObject(int gridX, int gridY, TileMap* map)
@@ -27,7 +27,7 @@ GridObject::GridObject(int gridX, int gridY, TileMap* map)
 }
 
 /* =======================
- * FSM interface
+ * Інтерфейс FSM
  * ======================= */
 
 void GridObject::setState(ObjectState state)
@@ -41,7 +41,7 @@ ObjectState GridObject::state() const
 }
 
 /* =======================
- * Cell access
+ * Доступ до клітинки
  * ======================= */
 
 QPoint GridObject::cell() const
@@ -50,7 +50,7 @@ QPoint GridObject::cell() const
 }
 
 /* =======================
- * Update (FSM core)
+ * Оновлення (ядро FSM)
  * ======================= */
 
 void GridObject::update()
@@ -70,7 +70,7 @@ void GridObject::update()
 }
 
 /* =======================
- * Patrol behaviour
+ * Патрулювання
  * ======================= */
 
 void GridObject::patrolStep()
@@ -87,7 +87,7 @@ void GridObject::patrolStep()
 }
 
 /* =======================
- * FollowPath behaviour
+ * Поведінка руху за шляхом
  * ======================= */
 
 void GridObject::setPath(const QList<QPoint>& path)
@@ -101,13 +101,13 @@ void GridObject::setPath(const QList<QPoint>& path)
 
 void GridObject::followPathStep()
 {
-    // если сейчас едем — продолжаем интерполяцию
+    // якщо вже рухаємося — продовжуємо інтерполяцію
     if (m_moving) {
         QPointF delta = m_targetPos - m_pos;
         qreal dist = QLineF(QPointF(0,0), delta).length();
 
         if (dist <= m_speed) {
-            // доехали до цели
+            // доїхали до цілі
             m_pos = m_targetPos;
             setPos(m_pos);
             m_moving = false;
@@ -119,13 +119,13 @@ void GridObject::followPathStep()
         return;
     }
 
-    // если путь закончился
+    // якщо шлях закінчився
     if (m_path.isEmpty()) {
         setState(ObjectState::Idle);
         return;
     }
 
-    // берём следующую клетку
+    // беремо наступну клітинку
     QPoint next = m_path.takeFirst();
 
     if (!m_map->isWalkable(next)) {
@@ -145,7 +145,7 @@ void GridObject::followPathStep()
 }
 
 /* =======================
- * Movement helpers
+ * Допоміжні функції руху
  * ======================= */
 
 void GridObject::tryMove(int newX, int newY)

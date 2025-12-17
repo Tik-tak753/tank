@@ -6,7 +6,7 @@
 class Agent;
 
 /*
- * Визуальное представление агента
+ * Візуальне представлення агента
  */
 class AgentItem : public QGraphicsItem
 {
@@ -18,7 +18,7 @@ public:
                const QStyleOptionGraphicsItem* option,
                QWidget* widget = nullptr) override;
 
-    // синхронизация с моделью
+    // синхронізація з моделлю
     void syncFromAgent();
 
 private:

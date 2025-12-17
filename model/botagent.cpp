@@ -4,7 +4,7 @@
 #include <QRandomGenerator>
 
 /* =====================
- * Constructor
+ * Конструктор
  * ===================== */
 
 BotAgent::BotAgent(int x, int y, TileMap* map)
@@ -13,23 +13,23 @@ BotAgent::BotAgent(int x, int y, TileMap* map)
 }
 
 /* =====================
- * Update
+ * Оновлення
  * ===================== */
 
 void BotAgent::update()
 {
-    // если есть путь — идём по нему
+    // якщо є шлях — рухаємося ним
     if (!m_path.isEmpty()) {
         Agent::update();
         return;
     }
 
-    // иначе — патруль
+    // інакше — патруль
     patrol();
 }
 
 /* =====================
- * Patrol behaviour
+ * Патрулювання
  * ===================== */
 
 void BotAgent::patrol()

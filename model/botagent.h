@@ -6,7 +6,7 @@
 class TileMap;
 
 /*
- * BotAgent — агент с простым поведением
+ * BotAgent — агент із простою поведінкою
  */
 class BotAgent : public Agent
 {

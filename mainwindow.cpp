@@ -14,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     /* =====================
-     * Scene / View
+     * Сцена / вікно перегляду
      * ===================== */
 
     scene = new QGraphicsScene(this);
@@ -24,12 +24,12 @@ MainWindow::MainWindow(QWidget *parent)
     resize(800, 600);
 
     /* =====================
-     * Map
+     * Карта
      * ===================== */
 
     map = new TileMap(GRID_WIDTH, GRID_HEIGHT);
 
-    // тестовые стены
+    // тестові стіни
     map->setWall(QPoint(3,3), true);
     map->setWall(QPoint(3,4), true);
     map->setWall(QPoint(3,5), true);
@@ -39,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
     view->drawMap(*map, TILE_SIZE);
 
     /* =====================
-     * Agent (MODEL)
+     * Агент (модель)
      * ===================== */
 
     QPoint start(1, 1);
@@ -51,14 +51,14 @@ MainWindow::MainWindow(QWidget *parent)
     agent->setPath(path);
 
     /* =====================
-     * AgentItem (VIEW)
+     * AgentItem (відображення)
      * ===================== */
 
     agentItem = new AgentItem(agent);
     scene->addItem(agentItem);
 
     /* =====================
-     * Timer
+     * Таймер
      * ===================== */
 
     timer = new QTimer(this);
@@ -71,5 +71,5 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    // Qt удалит QObject-детей автоматически
+    // Qt автоматично знищить дочірні QObject
 }

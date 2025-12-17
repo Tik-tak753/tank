@@ -7,8 +7,8 @@
 class TileMap;
 
 /*
- * Базовый агент (танк)
- * ЛОГИКА, БЕЗ ВИЗУАЛА
+ * Базовий агент (танк)
+ * ЛОГІКА, БЕЗ ВІЗУАЛУ
  */
 class Agent
 {
@@ -16,14 +16,14 @@ public:
     explicit Agent(int x, int y, TileMap* map);
     virtual ~Agent() = default;
 
-    // позиция
+    // позиція
     QPoint cell() const;
     QPoint prevCell() const;
 
-    // обновление логики (FSM / движение)
+    // оновлення логіки (FSM / рух)
     virtual void update();
 
-    // путь (BFS)
+    // шлях (BFS)
     void setPath(const QList<QPoint>& path);
 
 protected:

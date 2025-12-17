@@ -8,7 +8,7 @@
 #include <QBrush>
 
 /* =========================
- * Constructor
+ * Конструктор
  * ========================= */
 
 WorldView::WorldView(QGraphicsScene* scene, QWidget* parent)
@@ -18,22 +18,22 @@ WorldView::WorldView(QGraphicsScene* scene, QWidget* parent)
 }
 
 /* =========================
- * Отрисовка карты
- * (ТОЛЬКО карта, без акторов)
+ * Малювання карти
+ * (ЛИШЕ карта, без акторів)
  * ========================= */
 
 void WorldView::drawMap(const TileMap& map, int cellSize)
 {
     m_cellSize = cellSize;
 
-    // удалить ТОЛЬКО старые элементы карты
+    // видалити ЛИШЕ старі елементи карти
     for (QGraphicsItem* item : m_mapItems) {
         scene()->removeItem(item);
         delete item;
     }
     m_mapItems.clear();
 
-    // и подсветку пути
+    // і підсвітку шляху
     clearPath();
 
     QPen gridPen(Qt::lightGray);
@@ -43,13 +43,13 @@ void WorldView::drawMap(const TileMap& map, int cellSize)
         for (int x = 0; x < map.width(); ++x) {
             QRectF r(x * cellSize, y * cellSize, cellSize, cellSize);
 
-            // сетка
+            // сітка
             QGraphicsRectItem* grid =
                 scene()->addRect(r, gridPen);
             grid->setZValue(-10);
             m_mapItems.append(grid);
 
-            // стена
+            // стіна
             if (!map.isWalkable({x, y})) {
                 QGraphicsRectItem* wall =
                     scene()->addRect(r, Qt::NoPen, wallBrush);
@@ -61,7 +61,7 @@ void WorldView::drawMap(const TileMap& map, int cellSize)
 }
 
 /* =========================
- * Подсветка BFS-пути
+ * Підсвітка BFS-шляху
  * ========================= */
 
 void WorldView::clearPath()
@@ -90,13 +90,13 @@ void WorldView::showPath(const QList<QPoint>& path)
 
         QGraphicsRectItem* rect =
             scene()->addRect(r, noPen, pathBrush);
-        rect->setZValue(-5); // над картой, под объектами
+        rect->setZValue(-5); // над картою, під об'єктами
         m_pathItems.append(rect);
     }
 }
 
 /* =========================
- * Mouse input
+ * Події миші
  * ========================= */
 
 void WorldView::mousePressEvent(QMouseEvent* event)

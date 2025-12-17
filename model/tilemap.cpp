@@ -3,7 +3,7 @@
 TileMap::TileMap(int w, int h)
     : m_width(w), m_height(h), m_tiles(w * h, Empty)
 {
-    // рамка стен по краям
+    // рамка стін по краях
     for (int x = 0; x < w; ++x) {
         setWall({x, 0}, true);
         setWall({x, h - 1}, true);
@@ -13,7 +13,7 @@ TileMap::TileMap(int w, int h)
         setWall({w - 1, y}, true);
     }
 
-    // тестовые внутренние стены
+    // тестові внутрішні стіни
     for (int x = 4; x < 10; ++x)
         setWall({x, 6}, true);
 }

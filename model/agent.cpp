@@ -25,7 +25,7 @@ void Agent::setPath(const QList<QPoint>& path)
 
 void Agent::update()
 {
-    // минимально: следование пути
+    // мінімально: слідування шляху
     if (m_path.isEmpty())
         return;
 

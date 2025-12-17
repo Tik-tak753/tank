@@ -16,15 +16,15 @@ class WorldView : public QGraphicsView
 public:
     explicit WorldView(QGraphicsScene* scene, QWidget* parent = nullptr);
 
-    // отрисовка карты (без удаления акторов)
+    // малювання карти (без видалення акторів)
     void drawMap(const TileMap& map, int cellSize);
 
-    // подсветка BFS-пути
+    // підсвітка BFS-шляху
     void showPath(const QList<QPoint>& path);
     void clearPath();
 
 signals:
-    // единый сигнал мыши
+    // єдиний сигнал кліка миші
     void cellClicked(const QPoint& cell, Qt::MouseButton button);
 
 protected:
@@ -33,10 +33,10 @@ protected:
 private:
     int m_cellSize = 32;
 
-    // элементы карты (сетка + стены)
+    // елементи карти (сітка + стіни)
     QList<QGraphicsItem*> m_mapItems;
 
-    // элементы подсветки пути
+    // елементи підсвітки шляху
     QList<QGraphicsRectItem*> m_pathItems;
 };
 
