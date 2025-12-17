@@ -15,6 +15,7 @@ SOURCES += \
     model/agent.cpp \
     model/botagent.cpp \
     model/tilemap.cpp \
+    simulation/world.cpp \
     view/GridObject.cpp \
     view/agentitem.cpp \
     view/worldview.cpp
@@ -25,6 +26,7 @@ HEADERS += \
     model/agent.h \
     model/botagent.h \
     model/tilemap.h \
+    simulation/world.h \
     utils/Constants.h \
     view/GridObject.h \
     view/agentitem.h \
