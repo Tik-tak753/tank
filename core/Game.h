@@ -14,8 +14,6 @@ class PlayerTank;
 class EnemyTank;
 class Bullet;
 class Renderer;
-class CollisionSystem;
-class PhysicsSystem;
 class InputSystem;
 class LevelLoader;
 class Map;
@@ -57,6 +55,11 @@ public:
     void setInputSystem(InputSystem* input);
 
 private:
+    // Прапорці для розділення фаз життєвого циклу
+    bool m_initialized = false;
+    bool m_running = false;
+    int m_tickCounter = 0;
+
     GameRules m_rules;
     GameState m_state;
     GameLoop m_loop;
@@ -69,8 +72,6 @@ private:
     QList<Bullet*> m_bullets;
 
     Renderer* m_renderer = nullptr;
-    std::unique_ptr<CollisionSystem> m_collisionSystem;
-    std::unique_ptr<PhysicsSystem> m_physicsSystem;
     InputSystem* m_inputSystem = nullptr;
 
     std::unique_ptr<LevelLoader> m_levelLoader;

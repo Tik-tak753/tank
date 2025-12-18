@@ -4,8 +4,6 @@
 #include "gameplay/PlayerTank.h"
 #include "gameplay/Bullet.h"
 #include "rendering/Renderer.h"
-#include "systems/CollisionSystem.h"
-#include "systems/PhysicsSystem.h"
 #include "systems/InputSystem.h"
 #include "world/Base.h"
 #include "world/LevelLoader.h"
@@ -15,10 +13,7 @@ Game::Game(QObject* parent)
     : QObject(parent),
       m_loop(this)
 {
-    m_levelLoader = std::make_unique<LevelLoader>();
-    m_collisionSystem = std::make_unique<CollisionSystem>();
-    m_physicsSystem = std::make_unique<PhysicsSystem>();
-
+    // Під’єднуємо callback до GameLoop, але поки не запускаємо його
     m_loop.setTickCallback([this]() { update(); });
 }
 
@@ -32,49 +27,68 @@ Game::~Game()
 
 void Game::initialize()
 {
-    auto level = m_levelLoader->loadDefaultLevel(m_rules);
-    m_map = std::move(level.map);
-    m_base = std::make_unique<Base>(level.baseCell);
+    // На цьому кроці в майбутньому будемо створювати карту, танки та базу.
+    // Поки що готуємо лише базовий стан сесії.
 
-    m_state.reset(m_rules.playerLives(),
-                  m_rules.enemiesPerWave() * m_rules.totalWaves());
+    // Очистка попередніх даних, якщо ініціалізація виконується повторно
+    for (Bullet* bullet : m_bullets)
+        delete bullet;
+    m_bullets.clear();
+    for (Tank* tank : m_tanks)
+        delete tank;
+    m_tanks.clear();
+    m_enemies.clear();
+    m_map.reset();
+    m_base.reset();
 
-    auto player = new PlayerTank(level.playerSpawn);
-    m_tanks.append(player);
-
-    for (const QPoint& spawn : level.enemySpawns) {
-        auto enemy = new EnemyTank(spawn);
-        m_tanks.append(enemy);
-        m_enemies.append(enemy);
-    }
+    m_state.reset(m_rules.playerLives(), m_rules.enemiesPerWave());
+    m_tickCounter = 0;
+    m_initialized = true;
 }
 
 void Game::start()
 {
+    if (!m_initialized)
+        initialize();
+
+    if (m_running)
+        return;
+
+    // Запуск циклу — окрема фаза після ініціалізації
     m_loop.start();
+    m_running = true;
 }
 
 void Game::stop()
 {
+    if (!m_running)
+        return;
+
     m_loop.stop();
+    m_running = false;
 }
 
 void Game::update()
 {
-    if (!m_map)
+    // Не виконуємо оновлення, якщо гра ще не стартувала
+    if (!m_running)
         return;
 
-    for (Tank* tank : m_tanks)
-        tank->update();
+    ++m_tickCounter;
 
-    if (m_physicsSystem)
-        m_physicsSystem->update(m_bullets, *m_map);
+    // Легка емуляція прогресу: кожні 30 тік ворог "знищується"
+    if (m_tickCounter % 30 == 0 && m_state.remainingEnemies() > 0)
+        m_state.registerEnemyDestroyed();
 
-    if (m_collisionSystem)
-        m_collisionSystem->resolve(*m_map, m_tanks, m_bullets, m_base.get(), m_state);
+    // Перевірка завершення — окрема фаза, де ми зупиняємо цикл
+    if (m_state.isGameOver() || m_state.isVictory()) {
+        stop();
+        return;
+    }
 
-    if (m_renderer)
-        m_renderer->renderFrame(*this);
+    // Майбутнє місце для інтеграції з рендерингом та системами
+    // if (m_renderer)
+    //     m_renderer->renderFrame(*this);
 }
 
 void Game::setRenderer(Renderer* renderer)
