@@ -3,6 +3,7 @@
 
 #include <QList>
 #include <QPoint>
+#include <QStringList>
 #include <memory>
 
 #include "world/Map.h"
@@ -18,13 +19,14 @@ struct LevelData
 
 /*
  * LevelLoader відповідає за побудову карти з ресурсів або
- * процедурних генераторів. Поки що використовується вбудований
- * шаблон рівня, який імітує стартову арену Battle City.
+ * процедурних генераторів. Підтримує просте текстове
+ * представлення, де кожен символ визначає тип тайлу/спавн.
  */
 class LevelLoader
 {
 public:
     LevelData loadDefaultLevel(const GameRules& rules) const;
+    LevelData loadFromText(const QStringList& lines, const GameRules& rules) const;
 };
 
 #endif // LEVELLOADER_H

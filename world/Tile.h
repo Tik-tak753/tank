@@ -9,10 +9,9 @@
  */
 enum class TileType {
     Empty,
-    Brick,
-    Steel,
-    Water,
-    Base
+    Brick,      // цегляна стіна — руйнується
+    Steel,      // сталева стіна — не руйнується
+    Base        // база гравця
 };
 
 struct Tile

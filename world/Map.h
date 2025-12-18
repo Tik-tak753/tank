@@ -15,6 +15,7 @@ class Map
 {
 public:
     Map(int width, int height);
+    explicit Map(const QSize& size) : Map(size.width(), size.height()) {}
 
     QSize size() const { return m_size; }
     bool isInside(const QPoint& cell) const;
@@ -23,10 +24,8 @@ public:
     bool isWalkable(const QPoint& cell) const;
 
 private:
-    int index(const QPoint& cell) const;
-
     QSize m_size;
-    QVector<Tile> m_tiles;
+    QVector<QVector<Tile>> m_tiles; // m_tiles[y][x]
 };
 
 #endif // MAP_H
