@@ -34,6 +34,7 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
                 destroyBullet = true;
                 break;
             case TileType::Base:
+                map.setTile(cell, TileFactory::empty());
                 destroyBullet = true;
                 state.setBaseDestroyed();
                 if (base)
