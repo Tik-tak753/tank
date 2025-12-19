@@ -36,5 +36,5 @@ Bullet* Tank::tryShoot()
         return nullptr;
 
     m_fireRequested = false;
-    return m_weapon.fire(center(), m_direction);
+    return m_weapon.fire(cell(), m_direction);
 }

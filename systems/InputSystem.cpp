@@ -25,6 +25,11 @@ std::optional<Direction> InputSystem::directionFromKey(int key)
 
 bool InputSystem::handleKeyPress(int key)
 {
+    if (key == Qt::Key_Space) {
+        requestFire();
+        return true;
+    }
+
     const std::optional<Direction> dir = directionFromKey(key);
     if (!dir.has_value())
         return false;
@@ -35,6 +40,9 @@ bool InputSystem::handleKeyPress(int key)
 
 bool InputSystem::handleKeyRelease(int key)
 {
+    if (key == Qt::Key_Space)
+        return true;
+
     const std::optional<Direction> dir = directionFromKey(key);
     if (!dir.has_value())
         return false;

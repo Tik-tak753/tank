@@ -1,9 +1,12 @@
 #ifndef BULLET_H
 #define BULLET_H
 
-#include <QPointF>
+#include <QPoint>
+#include <QtGlobal>
 
 #include "gameplay/Direction.h"
+
+class Map;
 
 /*
  * Bullet відповідає за рух снаряду та його життєвий цикл.
@@ -11,20 +14,20 @@
 class Bullet
 {
 public:
-    Bullet(const QPointF& pos, Direction dir, float speed);
+    Bullet(const QPoint& cell, Direction dir);
 
-    QPointF position() const { return m_position; }
+    QPoint cell() const { return m_cell; }
     Direction direction() const { return m_direction; }
+    bool isAlive() const { return m_alive; }
 
-    void update(int deltaMs);
-    bool isExpired() const;
+    void update(int deltaMs, const Map& map);
+    void destroy();
 
 private:
-    QPointF m_position;
+    QPoint m_cell;
     Direction m_direction;
-    float m_speed;
-    int m_lifetimeMs = 1200;
-    int m_elapsedMs = 0;
+    qsizetype m_elapsedMs = 0;
+    bool m_alive = true;
 };
 
 #endif // BULLET_H

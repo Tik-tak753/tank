@@ -1,7 +1,5 @@
 #include "gameplay/WeaponSystem.h"
 
-#include <QtGlobal>
-
 #include "gameplay/Bullet.h"
 
 void WeaponSystem::tick(int deltaMs)
@@ -15,11 +13,11 @@ bool WeaponSystem::canShoot() const
     return m_cooldownMs == 0;
 }
 
-Bullet* WeaponSystem::fire(const QPointF& pos, Direction dir)
+Bullet* WeaponSystem::fire(const QPoint& cell, Direction dir)
 {
     if (!canShoot())
         return nullptr;
 
     m_cooldownMs = m_reloadMs;
-    return new Bullet(pos, dir, m_bulletSpeed);
+    return new Bullet(cell, dir);
 }

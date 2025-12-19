@@ -83,11 +83,7 @@ void Renderer::drawBullets(const Game& game)
 {
     const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
     for (Bullet* bullet : game.bullets()) {
-        QPointF pos = bullet->position();
-        if (m_camera)
-            pos = m_camera->toScene(pos);
-        else
-            pos *= tileSize;
-        m_scene->addRect(QRectF(pos, QSizeF(tileSize / 4, tileSize / 4)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+        QPointF pos = QPointF(bullet->cell()) * tileSize;
+        m_scene->addRect(QRectF(pos, QSizeF(tileSize / 2, tileSize / 2)), QPen(Qt::NoPen), QBrush(Qt::yellow));
     }
 }

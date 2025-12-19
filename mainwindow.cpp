@@ -15,6 +15,7 @@
 #include <QKeyEvent>
 
 #include "core/GameRules.h"
+#include "gameplay/Bullet.h"
 #include "gameplay/Direction.h"
 #include "gameplay/PlayerTank.h"
 #include "systems/InputSystem.h"
@@ -95,6 +96,34 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_timer, &QTimer::timeout, this, [this]() {
         const int deltaMs = 16; // ~60 FPS
         m_player->updateWithDelta(deltaMs);
+
+        if (!m_bullet) {
+            if (Bullet* spawned = m_player->tryShoot()) {
+                m_bullet.reset(spawned);
+                if (!m_bulletItem) {
+                    m_bulletItem = m_scene->addRect(QRectF(), QPen(Qt::NoPen), QBrush(Qt::yellow));
+                }
+                const QPoint bulletCell = m_bullet->cell();
+                const QPointF bulletPos = QPointF(bulletCell) * TILE_SIZE;
+                const QSizeF bulletSize(TILE_SIZE / 2, TILE_SIZE / 2);
+                m_bulletItem->setRect(QRectF(bulletPos, bulletSize));
+                m_bulletItem->setVisible(true);
+            }
+        }
+
+        if (m_bullet) {
+            m_bullet->update(deltaMs, *m_map);
+            if (!m_bullet->isAlive()) {
+                m_bullet.reset();
+                if (m_bulletItem)
+                    m_bulletItem->setVisible(false);
+            } else if (m_bulletItem) {
+                const QPoint bulletCell = m_bullet->cell();
+                const QPointF bulletPos = QPointF(bulletCell) * TILE_SIZE;
+                const QSizeF bulletSize(TILE_SIZE / 2, TILE_SIZE / 2);
+                m_bulletItem->setRect(QRectF(bulletPos, bulletSize));
+            }
+        }
 
         const QPoint cell = m_player->cell();
         const QPointF pixelPos = QPointF(cell) * TILE_SIZE;
