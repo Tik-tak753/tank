@@ -34,6 +34,7 @@ public:
 
     // Підготовка базового рівня та створення сутностей
     void initialize();
+    void restart();
 
     // Крок оновлення (викликається MainWindow)
     void update(int deltaMs);

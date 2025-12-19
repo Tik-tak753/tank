@@ -57,6 +57,11 @@ void Game::initialize()
     }
 }
 
+void Game::restart()
+{
+    initialize();
+}
+
 void Game::setInputSystem(InputSystem* input)
 {
     m_inputSystem = input;
