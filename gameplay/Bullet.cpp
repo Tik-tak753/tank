@@ -16,9 +16,10 @@ QPoint stepDelta(Direction dir)
 }
 } // namespace
 
-Bullet::Bullet(const QPoint& cell, Direction dir)
+Bullet::Bullet(const QPoint& cell, Direction dir, const Tank* owner)
     : m_cell(cell),
-      m_direction(dir)
+      m_direction(dir),
+      m_owner(owner)
 {
 }
 

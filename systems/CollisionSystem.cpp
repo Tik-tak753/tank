@@ -44,7 +44,13 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
 
         if (!destroyBullet) {
             for (Tank* tank : tanks) {
-                if (tank && tank->cell() == cell) {
+                if (!tank)
+                    continue;
+
+                if (tank == bullet->owner())
+                    continue;
+
+                if (tank->cell() == cell) {
                     tank->health().takeDamage(1);
                     destroyBullet = true;
                     break;
