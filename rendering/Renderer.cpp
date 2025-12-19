@@ -39,7 +39,9 @@ void Renderer::renderFrame(const Game& game)
     if (!m_scene)
         return;
 
-    initializeMap(game);
+    clearMapLayer();     // DEBUG ONLY
+    drawMap(game);       // reflect runtime tile changes
+
     syncTanks(game);
     syncBullets(game);
 }
