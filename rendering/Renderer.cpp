@@ -74,6 +74,7 @@ void Renderer::drawMap(const Game& game)
 
             const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
+            item->setZValue(0);
             m_mapItems.append(item);
         }
     }
@@ -109,12 +110,14 @@ void Renderer::syncTanks(const Game& game)
         QGraphicsRectItem* item = m_tankItems.value(tank, nullptr);
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
+            item->setZValue(10);
             m_tankItems.insert(tank, item);
         }
 
         QGraphicsRectItem* directionItem = m_tankDirectionItems.value(tank, nullptr);
         if (!directionItem) {
             directionItem = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(barrelThickness, barrelLength)), QPen(Qt::NoPen), QBrush(Qt::black));
+            directionItem->setZValue(11);
             m_tankDirectionItems.insert(tank, directionItem);
         }
 
@@ -165,6 +168,7 @@ void Renderer::syncBullets(const Game& game)
         QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+            item->setZValue(20);
             m_bulletItems.insert(bullet, item);
         }
 
