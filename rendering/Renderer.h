@@ -8,6 +8,7 @@
 class QGraphicsScene;
 class QGraphicsItem;
 class QGraphicsRectItem;
+class QGraphicsTextItem;
 class SpriteManager;
 class Camera;
 class Game;
@@ -33,6 +34,7 @@ private:
     void drawMap(const Game& game);
     void syncTanks(const Game& game);
     void syncBullets(const Game& game);
+    void updateHud(const Game& game);
     void clearMapLayer();
     qreal tileSize() const;
 
@@ -45,6 +47,7 @@ private:
     QHash<const Tank*, QGraphicsRectItem*> m_tankItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
+    QGraphicsTextItem* m_hudItem = nullptr;
 };
 
 #endif // RENDERER_H
