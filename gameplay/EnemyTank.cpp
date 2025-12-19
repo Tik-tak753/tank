@@ -1,15 +1,13 @@
 #include "gameplay/EnemyTank.h"
 
-#include "ai/EnemyAI.h"
+#include <QRandomGenerator>
 
 EnemyTank::EnemyTank(const QPoint& cell)
     : Tank(cell)
 {
-    m_speed = 1.0f;
-    m_ai = std::make_unique<EnemyAI>();
+    setDirection(Direction::Down);
+    resetFireInterval();
 }
-
-EnemyTank::~EnemyTank() = default;
 
 void EnemyTank::update()
 {
@@ -19,6 +17,17 @@ void EnemyTank::update()
 void EnemyTank::updateWithDelta(int deltaMs)
 {
     Tank::updateWithDelta(deltaMs);
-    if (m_ai)
-        m_ai->tick(*this);
+
+    m_elapsedMs += deltaMs;
+    if (m_elapsedMs >= m_fireIntervalMs) {
+        requestFire();
+        m_elapsedMs = 0;
+        resetFireInterval();
+    }
+}
+
+void EnemyTank::resetFireInterval()
+{
+    // Стріляємо з випадковою затримкою в межах 800–1200 мс
+    m_fireIntervalMs = QRandomGenerator::global()->bounded(800, 1201);
 }
