@@ -1,26 +1,24 @@
 #ifndef ENEMYTANK_H
 #define ENEMYTANK_H
 
-#include <memory>
-
 #include "gameplay/Tank.h"
 
-class EnemyAI;
-
 /*
- * EnemyTank — представлення ворога, який керується AI.
+ * EnemyTank — примітивний супротивник, який стріляє за таймером.
  */
 class EnemyTank : public Tank
 {
 public:
     explicit EnemyTank(const QPoint& cell);
-    ~EnemyTank();
 
     void update() override;
     void updateWithDelta(int deltaMs) override;
 
 private:
-    std::unique_ptr<EnemyAI> m_ai;
+    void resetFireInterval();
+
+    int m_elapsedMs = 0;
+    int m_fireIntervalMs = 1000;
 };
 
 #endif // ENEMYTANK_H

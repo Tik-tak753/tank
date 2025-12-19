@@ -1,8 +1,11 @@
 #include "core/Game.h"
 
+#include <QtGlobal>
+
 #include "gameplay/EnemyTank.h"
 #include "gameplay/PlayerTank.h"
 #include "gameplay/Bullet.h"
+#include "gameplay/Direction.h"
 #include "systems/InputSystem.h"
 #include "systems/PhysicsSystem.h"
 #include "systems/CollisionSystem.h"
@@ -44,6 +47,13 @@ void Game::initialize()
 
     m_player = player.get();
     m_tanks.append(player.release());
+
+    const qsizetype enemiesToSpawn = qMin(level.enemySpawns.size(), static_cast<qsizetype>(3));
+    for (qsizetype i = 0; i < enemiesToSpawn; ++i) {
+        auto enemy = std::make_unique<EnemyTank>(level.enemySpawns.at(i));
+        enemy->setDirection(Direction::Down);
+        m_tanks.append(enemy.release());
+    }
 }
 
 void Game::setInputSystem(InputSystem* input)
