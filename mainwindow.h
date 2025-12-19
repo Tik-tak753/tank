@@ -8,6 +8,7 @@ class QGraphicsScene;
 class QGraphicsView;
 class QTimer;
 class QKeyEvent;
+class QGraphicsTextItem;
 
 class Game;
 class InputSystem;
@@ -34,6 +35,7 @@ private:
     std::unique_ptr<Game> m_game;
     std::unique_ptr<InputSystem> m_input;
     std::unique_ptr<Renderer> m_renderer;
+    QGraphicsTextItem* m_gameOverItem = nullptr;
 
     // Timer
     QTimer* m_timer = nullptr;

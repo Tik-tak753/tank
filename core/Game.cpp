@@ -66,6 +66,9 @@ void Game::setInputSystem(InputSystem* input)
 
 void Game::update(int deltaMs)
 {
+    if (m_state.isBaseDestroyed())
+        return;
+
     if (!m_map)
         initialize();
 

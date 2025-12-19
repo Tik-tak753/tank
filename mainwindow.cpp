@@ -2,10 +2,13 @@
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QGraphicsTextItem>
+#include <QFont>
 #include <QTimer>
 #include <QPoint>
 #include <QKeyEvent>
 #include <QSize>
+#include <QColor>
 
 #include "core/Game.h"
 #include "systems/InputSystem.h"
@@ -53,6 +56,24 @@ MainWindow::MainWindow(QWidget *parent)
         m_game->update(deltaMs);
         if (m_renderer)
             m_renderer->renderFrame(*m_game);
+
+        if (m_game && m_game->state().isBaseDestroyed() && !m_gameOverItem) {
+            m_gameOverItem = new QGraphicsTextItem(QStringLiteral("GAME OVER"));
+            QFont font = m_gameOverItem->font();
+            font.setPointSize(40);
+            m_gameOverItem->setFont(font);
+            m_gameOverItem->setDefaultTextColor(Qt::red);
+            m_gameOverItem->setZValue(1000);
+            m_scene->addItem(m_gameOverItem);
+
+            QRectF sceneRect = m_scene->sceneRect();
+            if (!sceneRect.isValid() || sceneRect.isNull())
+                sceneRect = m_scene->itemsBoundingRect();
+
+            const QRectF textRect = m_gameOverItem->boundingRect();
+            const QPointF centeredPos = sceneRect.center() - QPointF(textRect.width() / 2.0, textRect.height() / 2.0);
+            m_gameOverItem->setPos(centeredPos);
+        }
     });
     m_timer->start(16);
 }
