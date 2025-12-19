@@ -1,8 +1,5 @@
 #include "gameplay/Bullet.h"
 
-#include "world/Map.h"
-#include "world/Tile.h"
-
 namespace {
 constexpr qsizetype kStepIntervalMs = 120;
 
@@ -25,7 +22,7 @@ Bullet::Bullet(const QPoint& cell, Direction dir)
 {
 }
 
-void Bullet::update(int deltaMs, const Map& map)
+void Bullet::update(int deltaMs)
 {
     if (!m_alive)
         return;
@@ -35,22 +32,18 @@ void Bullet::update(int deltaMs, const Map& map)
         return;
 
     const QPoint delta = stepDelta(m_direction);
-    while (m_alive && m_elapsedMs >= kStepIntervalMs) {
-        const QPoint nextCell = m_cell + delta;
-        if (!map.isInside(nextCell)) {
-            destroy();
-            break;
-        }
+    m_cell += delta;
+    m_elapsedMs -= kStepIntervalMs;
+}
 
-        const Tile target = map.tile(nextCell);
-        if (target.type != TileType::Empty) {
-            destroy();
-            break;
-        }
+QPoint Bullet::directionDelta() const
+{
+    return stepDelta(m_direction);
+}
 
-        m_cell = nextCell;
-        m_elapsedMs -= kStepIntervalMs;
-    }
+QPoint Bullet::nextCell() const
+{
+    return m_cell + directionDelta();
 }
 
 void Bullet::destroy()

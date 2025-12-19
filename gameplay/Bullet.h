@@ -6,8 +6,6 @@
 
 #include "gameplay/Direction.h"
 
-class Map;
-
 /*
  * Bullet відповідає за рух снаряду та його життєвий цикл.
  */
@@ -18,9 +16,11 @@ public:
 
     QPoint cell() const { return m_cell; }
     Direction direction() const { return m_direction; }
+    QPoint directionDelta() const;
+    QPoint nextCell() const;
     bool isAlive() const { return m_alive; }
 
-    void update(int deltaMs, const Map& map);
+    void update(int deltaMs);
     void destroy();
 
 private:
