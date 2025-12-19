@@ -153,8 +153,10 @@ void Renderer::syncBullets(const Game& game)
     const qreal bulletSize = size / 2.0;
     QSet<const Bullet*> seen;
 
+    const QPointF bulletOffset((size - bulletSize) / 2.0, (size - bulletSize) / 2.0);
+
     for (Bullet* bullet : game.bullets()) {
-        if (!bullet)
+        if (!bullet || !bullet->isAlive())
             continue;
 
         seen.insert(bullet);
@@ -164,7 +166,7 @@ void Renderer::syncBullets(const Game& game)
             m_bulletItems.insert(bullet, item);
         }
 
-        const QPointF pos = QPointF(bullet->cell()) * size;
+        const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
         item->setPos(pos);
     }
 
