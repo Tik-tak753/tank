@@ -43,6 +43,7 @@ private:
     const Map* m_cachedMap = nullptr;
     QList<QGraphicsItem*> m_mapItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankItems;
+    QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
 };
 
