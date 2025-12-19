@@ -133,6 +133,29 @@ void Renderer::syncTanks(const Game& game)
             continue;
 
         seen.insert(tank);
+
+        if (tank->isDestroyed()) {
+            if (!m_destroyedTanks.contains(tank))
+                m_explosions.append(Explosion{tank->cell(), 12});
+
+            m_destroyedTanks.insert(tank);
+
+            QGraphicsRectItem* item = m_tankItems.take(tank);
+            if (item) {
+                m_scene->removeItem(item);
+                delete item;
+            }
+
+            QGraphicsRectItem* directionItem = m_tankDirectionItems.take(tank);
+            if (directionItem) {
+                m_scene->removeItem(directionItem);
+                delete directionItem;
+            }
+
+            continue;
+        } else {
+            m_destroyedTanks.remove(tank);
+        }
         QGraphicsRectItem* item = m_tankItems.value(tank, nullptr);
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
@@ -175,6 +198,14 @@ void Renderer::syncTanks(const Game& game)
         } else {
             ++dirIt;
         }
+    }
+
+    auto destroyedIt = m_destroyedTanks.begin();
+    while (destroyedIt != m_destroyedTanks.end()) {
+        if (!seen.contains(*destroyedIt))
+            destroyedIt = m_destroyedTanks.erase(destroyedIt);
+        else
+            ++destroyedIt;
     }
 }
 

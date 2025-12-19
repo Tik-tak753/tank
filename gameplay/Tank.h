@@ -21,6 +21,10 @@ public:
     explicit Tank(const QPoint& cell);
     virtual ~Tank() = default;
 
+    bool isDestroyed() const { return m_destroyed; }
+    bool isDestructionFinished() const { return m_destroyed && m_destructionTimerMs <= 0; }
+    void markDestroyed();
+
     QPoint cell() const { return GameObject::cell(); }
     void setCell(const QPoint& cell) { GameObject::setCell(cell); }
 
@@ -47,6 +51,9 @@ protected:
 
     WeaponSystem m_weapon;
     HealthSystem m_health;
-};
+
+    bool m_destroyed = false;
+    int m_destructionTimerMs = 0;
+}; 
 
 #endif // TANK_H

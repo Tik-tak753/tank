@@ -43,6 +43,9 @@ void PlayerTank::updateWithDelta(int deltaMs)
 {
     Tank::updateWithDelta(deltaMs);
 
+    if (isDestroyed())
+        return;
+
     if (!m_input)
         return;
 

@@ -64,6 +64,9 @@ void CollisionSystem::resolve(
                 if (!tank)
                     continue;
 
+                if (tank->isDestroyed())
+                    continue;
+
                 if (tank == bullet->owner())
                     continue;
 
@@ -79,4 +82,3 @@ void CollisionSystem::resolve(
             bullet->destroy();
     }
 }
-
