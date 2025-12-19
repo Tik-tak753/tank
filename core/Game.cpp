@@ -52,6 +52,7 @@ void Game::initialize()
     for (qsizetype i = 0; i < enemiesToSpawn; ++i) {
         auto enemy = std::make_unique<EnemyTank>(level.enemySpawns.at(i));
         enemy->setDirection(Direction::Down);
+        enemy->setMap(m_map.get());
         m_tanks.append(enemy.release());
     }
 }
