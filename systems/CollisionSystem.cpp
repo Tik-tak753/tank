@@ -16,19 +16,18 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
         if (!bullet || !bullet->isAlive())
             continue;
 
-        const QPoint cell = bullet->cell();
         const QPoint nextCell = bullet->nextCell();
         bool destroyBullet = false;
 
-        if (!map.isInside(cell)) {
+        if (!map.isInside(nextCell)) {
             destroyBullet = true;
         } else {
-            const Tile target = map.tile(cell);
+            const Tile target = map.tile(nextCell);
             switch (target.type) {
             case TileType::Empty:
                 break;
             case TileType::Brick:
-                map.setTile(cell, TileFactory::empty());
+                map.setTile(nextCell, TileFactory::empty());
                 destroyBullet = true;
                 break;
             case TileType::Steel:
