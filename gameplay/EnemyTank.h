@@ -17,6 +17,7 @@ public:
     ~EnemyTank();
 
     void update() override;
+    void updateWithDelta(int deltaMs) override;
 
 private:
     std::unique_ptr<EnemyAI> m_ai;

@@ -2,8 +2,12 @@
 
 #include "gameplay/Bullet.h"
 
+namespace {
+constexpr int kDefaultDeltaMs = 16;
+}
+
 Tank::Tank(const QPoint& cell)
-    : m_cell(cell)
+    : GameObject(QPointF(cell))
 {
     m_health.setMaxHealth(1);
     m_health.setLives(1);
@@ -17,8 +21,13 @@ void Tank::setSpeed(float speed)
 
 void Tank::update()
 {
+    updateWithDelta(kDefaultDeltaMs);
+}
+
+void Tank::updateWithDelta(int deltaMs)
+{
     // базовий танк лише відраховує перезарядку
-    m_weapon.tick(16);
+    m_weapon.tick(deltaMs);
 }
 
 Bullet* Tank::tryShoot()
@@ -27,6 +36,5 @@ Bullet* Tank::tryShoot()
         return nullptr;
 
     m_fireRequested = false;
-    const QPointF bulletPos = QPointF(m_cell) + QPointF(0.5, 0.5);
-    return m_weapon.fire(bulletPos, m_direction);
+    return m_weapon.fire(center(), m_direction);
 }

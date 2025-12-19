@@ -13,7 +13,12 @@ EnemyTank::~EnemyTank() = default;
 
 void EnemyTank::update()
 {
-    Tank::update();
+    updateWithDelta(16);
+}
+
+void EnemyTank::updateWithDelta(int deltaMs)
+{
+    Tank::updateWithDelta(deltaMs);
     if (m_ai)
         m_ai->tick(*this);
 }
