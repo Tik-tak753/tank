@@ -67,6 +67,7 @@ private:
     QList<Explosion> m_explosions;
     QSet<const Bullet*> m_previousBullets;
     QHash<const Bullet*, QPoint> m_lastBulletCells;
+    QSet<const Tank*> m_destroyedTanks;
 };
 
 #endif // RENDERER_H

@@ -4,6 +4,7 @@
 
 namespace {
 constexpr int kDefaultDeltaMs = 16;
+constexpr int kDestructionDelayMs = 350;
 }
 
 Tank::Tank(const QPoint& cell)
@@ -19,6 +20,15 @@ void Tank::setSpeed(float speed)
     m_speed = speed;
 }
 
+void Tank::markDestroyed()
+{
+    if (m_destroyed)
+        return;
+
+    m_destroyed = true;
+    m_destructionTimerMs = kDestructionDelayMs;
+}
+
 void Tank::update()
 {
     updateWithDelta(kDefaultDeltaMs);
@@ -26,12 +36,20 @@ void Tank::update()
 
 void Tank::updateWithDelta(int deltaMs)
 {
+    if (m_destroyed) {
+        m_destructionTimerMs -= deltaMs;
+        return;
+    }
+
     // базовий танк лише відраховує перезарядку
     m_weapon.tick(deltaMs);
 }
 
 std::unique_ptr<Bullet> Tank::tryShoot()
 {
+    if (m_destroyed)
+        return nullptr;
+
     if (!m_fireRequested)
         return nullptr;
 

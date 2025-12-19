@@ -141,14 +141,23 @@ void Game::removeDeadTanks()
 {
     for (qsizetype i = m_tanks.size(); i > 0; --i) {
         Tank* tank = m_tanks.at(i - 1);
-        if (tank && !tank->health().isAlive()) {
-            if (tank == m_player) {
-                m_player = nullptr;
-                m_state.registerPlayerLostLife();
-            }
+        if (!tank)
+            continue;
 
-            delete tank;
-            m_tanks.removeAt(i - 1);
+        if (!tank->health().isAlive() && !tank->isDestroyed())
+            tank->markDestroyed();
+
+        if (!tank->isDestructionFinished())
+            continue;
+
+        if (tank == m_player) {
+            m_player = nullptr;
+            m_state.registerPlayerLostLife();
+        } else if (dynamic_cast<EnemyTank*>(tank)) {
+            m_state.registerEnemyDestroyed();
         }
+
+        delete tank;
+        m_tanks.removeAt(i - 1);
     }
 }
