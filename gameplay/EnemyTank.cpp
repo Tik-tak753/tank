@@ -46,6 +46,17 @@ QPoint EnemyTank::directionDelta() const
     return QPoint(0, 0);
 }
 
+QPoint EnemyTank::directionDelta(Direction direction) const
+{
+    switch (direction) {
+    case Direction::Up:    return QPoint(0, -1);
+    case Direction::Down:  return QPoint(0, 1);
+    case Direction::Left:  return QPoint(-1, 0);
+    case Direction::Right: return QPoint(1, 0);
+    }
+    return QPoint(0, 0);
+}
+
 Direction EnemyTank::oppositeDirection() const
 {
     switch (direction()) {
@@ -57,16 +68,52 @@ Direction EnemyTank::oppositeDirection() const
     return Direction::Down;
 }
 
+Direction EnemyTank::randomDirection(Direction exclude) const
+{
+    Direction newDirection = direction();
+    do {
+        const int value = QRandomGenerator::global()->bounded(4);
+        switch (value) {
+        case 0: newDirection = Direction::Up; break;
+        case 1: newDirection = Direction::Down; break;
+        case 2: newDirection = Direction::Left; break;
+        case 3: newDirection = Direction::Right; break;
+        }
+    } while (newDirection == exclude);
+
+    return newDirection;
+}
+
+bool EnemyTank::canMove(Direction direction) const
+{
+    if (!m_map)
+        return false;
+
+    const QPoint nextCell = cell() + directionDelta(direction);
+    return m_map->isInside(nextCell) && m_map->tile(nextCell).type == TileType::Empty;
+}
+
 void EnemyTank::tryMove()
 {
     if (!m_map)
         return;
 
-    const QPoint nextCell = cell() + directionDelta();
-    if (m_map->isInside(nextCell) && m_map->tile(nextCell).type == TileType::Empty) {
-        setCell(nextCell);
-    } else {
-        setDirection(oppositeDirection());
+    // Randomly change direction to add variability
+    const bool changeDirection = QRandomGenerator::global()->bounded(100) < 25;
+    if (changeDirection) {
+        setDirection(randomDirection(direction()));
+    }
+
+    if (canMove(direction())) {
+        setCell(cell() + directionDelta());
+        return;
+    }
+
+    // When blocked, pick a new random direction (not the current one) and try to move once
+    const Direction newDirection = randomDirection(direction());
+    setDirection(newDirection);
+    if (canMove(newDirection)) {
+        setCell(cell() + directionDelta());
     }
 }
 
