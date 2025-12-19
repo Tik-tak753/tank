@@ -35,6 +35,7 @@ private:
     void syncTanks(const Game& game);
     void syncBullets(const Game& game);
     void updateHud(const Game& game);
+    void updateBaseBlinking(const Game& game);
     void clearMapLayer();
     qreal tileSize() const;
 
@@ -48,6 +49,10 @@ private:
     QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
     QGraphicsTextItem* m_hudItem = nullptr;
+
+    bool m_baseBlinking = false;
+    int m_baseBlinkCounter = 0;
+    int m_lastBaseHealth = -1;
 };
 
 #endif // RENDERER_H
