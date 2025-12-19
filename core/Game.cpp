@@ -12,6 +12,7 @@
 #include "world/Base.h"
 #include "world/LevelLoader.h"
 #include "world/Map.h"
+#include "world/Tile.h"
 
 Game::Game(QObject* parent)
     : QObject(parent),
@@ -33,13 +34,18 @@ void Game::initialize()
 
     clearWorld();
 
-    m_state.reset(m_rules.playerLives(), m_rules.enemiesPerWave());
+    const int totalEnemies = m_rules.enemiesPerWave() * m_rules.totalWaves();
+    m_state.reset(m_rules.playerLives(), totalEnemies);
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
 
     LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
     m_map = std::move(level.map);
     m_base = std::make_unique<Base>(level.baseCell);
+    m_enemySpawnPoints = level.enemySpawns;
+    m_maxAliveEnemies = m_rules.enemiesPerWave();
+    m_nextSpawnIndex = 0;
+    m_enemySpawnCooldownMs = 0;
 
     auto player = std::make_unique<PlayerTank>(level.playerSpawn);
     player->setMap(m_map.get());
@@ -48,13 +54,7 @@ void Game::initialize()
     m_player = player.get();
     m_tanks.append(player.release());
 
-    const qsizetype enemiesToSpawn = qMin(level.enemySpawns.size(), static_cast<qsizetype>(3));
-    for (qsizetype i = 0; i < enemiesToSpawn; ++i) {
-        auto enemy = std::make_unique<EnemyTank>(level.enemySpawns.at(i));
-        enemy->setDirection(Direction::Down);
-        enemy->setMap(m_map.get());
-        m_tanks.append(enemy.release());
-    }
+    updateEnemySpawning(0);
 }
 
 void Game::restart()
@@ -89,6 +89,7 @@ void Game::update(int deltaMs)
     m_pendingBullets.clear();
 
     removeDeadTanks();
+    updateEnemySpawning(deltaMs);
     // Прибираємо всі снаряди, що втратили життєздатність
     for (qsizetype i = m_bullets.size(); i > 0; --i) {
         Bullet* bullet = m_bullets.at(i - 1);
@@ -113,6 +114,7 @@ void Game::clearWorld()
     m_map.reset();
     m_base.reset();
     m_player = nullptr;
+    m_enemySpawnPoints.clear();
 }
 
 void Game::updateTanks(int deltaMs)
@@ -139,6 +141,7 @@ void Game::spawnPendingBullets()
 
 void Game::removeDeadTanks()
 {
+    bool enemyDestroyed = false;
     for (qsizetype i = m_tanks.size(); i > 0; --i) {
         Tank* tank = m_tanks.at(i - 1);
         if (!tank)
@@ -154,10 +157,84 @@ void Game::removeDeadTanks()
             m_player = nullptr;
             m_state.registerPlayerLostLife();
         } else if (dynamic_cast<EnemyTank*>(tank)) {
+            m_enemies.removeOne(static_cast<EnemyTank*>(tank));
             m_state.registerEnemyDestroyed();
+            enemyDestroyed = true;
         }
 
         delete tank;
         m_tanks.removeAt(i - 1);
     }
+
+    if (enemyDestroyed && m_state.enemiesToSpawn() > 0 && m_enemySpawnCooldownMs == 0)
+        m_enemySpawnCooldownMs = m_enemyRespawnDelayMs;
+}
+
+void Game::updateEnemySpawning(int deltaMs)
+{
+    if (!m_map)
+        return;
+
+    if (m_enemySpawnCooldownMs > 0) {
+        m_enemySpawnCooldownMs = qMax(0, m_enemySpawnCooldownMs - deltaMs);
+        if (m_enemySpawnCooldownMs > 0)
+            return;
+    }
+
+    bool spawnedAny = false;
+    while (m_state.aliveEnemies() < m_maxAliveEnemies && m_state.enemiesToSpawn() > 0) {
+        if (!trySpawnEnemy())
+            break;
+        spawnedAny = true;
+    }
+
+    if (spawnedAny && m_state.enemiesToSpawn() > 0)
+        m_enemySpawnCooldownMs = m_enemyRespawnDelayMs;
+}
+
+bool Game::trySpawnEnemy()
+{
+    if (!m_map || m_enemySpawnPoints.isEmpty())
+        return false;
+
+    const qsizetype spawnCount = m_enemySpawnPoints.size();
+    for (qsizetype i = 0; i < spawnCount; ++i) {
+        const QPoint cell = m_enemySpawnPoints.at(m_nextSpawnIndex);
+        m_nextSpawnIndex = (m_nextSpawnIndex + 1) % spawnCount;
+
+        if (!canSpawnEnemyAt(cell))
+            continue;
+
+        auto enemy = std::make_unique<EnemyTank>(cell);
+        enemy->setDirection(Direction::Down);
+        enemy->setMap(m_map.get());
+
+        EnemyTank* enemyPtr = enemy.get();
+        m_state.registerSpawnedEnemy();
+        m_tanks.append(enemy.release());
+        m_enemies.append(enemyPtr);
+        return true;
+    }
+
+    return false;
+}
+
+bool Game::canSpawnEnemyAt(const QPoint& cell) const
+{
+    if (!m_map || !m_map->isInside(cell))
+        return false;
+
+    const Tile tile = m_map->tile(cell);
+    if (tile.type != TileType::Empty)
+        return false;
+
+    for (Tank* tank : m_tanks) {
+        if (!tank)
+            continue;
+
+        if (!tank->isDestructionFinished() && tank->cell() == cell)
+            return false;
+    }
+
+    return true;
 }

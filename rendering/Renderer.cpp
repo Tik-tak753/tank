@@ -291,12 +291,7 @@ void Renderer::updateHud(const Game& game)
     }
 
     const int lives = game.state().remainingLives();
-
-    int enemyCount = 0;
-    for (Tank* tank : game.tanks()) {
-        if (dynamic_cast<EnemyTank*>(tank))
-            ++enemyCount;
-    }
+    const int enemyCount = game.state().aliveEnemies();
 
     const QString text = QStringLiteral("LIVES: %1\nENEMIES: %2")
                              .arg(lives)
