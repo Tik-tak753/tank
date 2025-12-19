@@ -17,13 +17,12 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
             continue;
 
         const QPoint cell = bullet->cell();
-        const QPoint nextCell = bullet->nextCell();
         bool destroyBullet = false;
 
-        if (!map.isInside(nextCell)) {
+        if (!map.isInside(cell)) {
             destroyBullet = true;
         } else {
-            const Tile target = map.tile(nextCell);
+            const Tile target = map.tile(cell);
             switch (target.type) {
             case TileType::Empty:
                 break;
