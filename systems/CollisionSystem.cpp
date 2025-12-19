@@ -17,6 +17,7 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
             continue;
 
         const QPoint cell = bullet->cell();
+        const QPoint nextCell = bullet->nextCell();
         bool destroyBullet = false;
 
         if (!map.isInside(cell)) {
@@ -44,7 +45,7 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
 
         if (!destroyBullet) {
             for (Tank* tank : tanks) {
-                if (tank && tank->cell() == cell) {
+                if (tank && tank->cell() == nextCell) {
                     tank->health().takeDamage(1);
                     destroyBullet = true;
                     break;
