@@ -2,6 +2,8 @@
 #define INPUTSYSTEM_H
 
 #include "gameplay/Direction.h"
+#include <optional>
+#include <vector>
 
 /*
  * InputSystem зберігає останній стан вводу користувача.
@@ -10,14 +12,20 @@
 class InputSystem
 {
 public:
-    void setDirection(Direction dir) { m_direction = dir; }
-    Direction currentDirection() const { return m_direction; }
+    bool handleKeyPress(int key);
+    bool handleKeyRelease(int key);
+
+    std::optional<Direction> currentDirection() const;
 
     void requestFire();
     bool consumeFire();
 
 private:
-    Direction m_direction = Direction::Up;
+    static std::optional<Direction> directionFromKey(int key);
+    void pushDirection(Direction dir);
+    void removeDirection(Direction dir);
+
+    std::vector<Direction> m_pressedDirections;
     bool m_fireRequested = false;
 };
 

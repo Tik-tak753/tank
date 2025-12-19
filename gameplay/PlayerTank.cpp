@@ -2,6 +2,7 @@
 
 #include "systems/InputSystem.h"
 #include "world/Map.h"
+#include <optional>
 
 namespace {
 QPoint directionDelta(Direction dir)
@@ -45,14 +46,17 @@ void PlayerTank::updateWithDelta(int deltaMs)
     if (!m_input)
         return;
 
-    const Direction desired = m_input->currentDirection();
-    setDirection(desired);
+    const std::optional<Direction> desired = m_input->currentDirection();
+    if (!desired.has_value())
+        return;
+
+    setDirection(*desired);
 
     // Підтримуємо стабільний рух по тайлах навіть за різного FPS
     const float deltaSeconds = deltaMs / 1000.0f;
     m_moveAccumulator += speed() * deltaSeconds;
 
-    const QPoint step = directionDelta(desired);
+    const QPoint step = directionDelta(*desired);
     while (m_moveAccumulator >= 1.0f) {
         const QPoint nextCell = cell() + step;
         if (m_map && !m_map->isWalkable(nextCell)) {
