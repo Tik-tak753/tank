@@ -8,6 +8,7 @@ class QGraphicsScene;
 class QGraphicsView;
 class QTimer;
 class QGraphicsRectItem;
+class QKeyEvent;
 
 class Map;
 class PlayerTank;
@@ -20,6 +21,10 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
 
 private:
     // View / Scene

@@ -12,6 +12,7 @@
 #include <QColor>
 #include <QPen>
 #include <QSizeF>
+#include <QKeyEvent>
 
 #include "core/GameRules.h"
 #include "gameplay/Direction.h"
@@ -34,6 +35,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_view = new QGraphicsView(m_scene, this);
     setCentralWidget(m_view);
     resize(800, 600);
+    setFocusPolicy(Qt::StrongFocus);
+    m_view->setFocus();
 
     /* =====================
      * Map
@@ -71,7 +74,6 @@ MainWindow::MainWindow(QWidget *parent)
      * ===================== */
 
     m_input = std::make_unique<InputSystem>();
-    m_input->setDirection(Direction::Right);
 
     m_player = std::make_unique<PlayerTank>(level.playerSpawn);
     m_player->setInput(m_input.get());
@@ -104,4 +106,34 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     // Qt удалит QObject-детей автоматически
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->isAutoRepeat()) {
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
+
+    if (m_input && m_input->handleKeyPress(event->key())) {
+        event->accept();
+        return;
+    }
+
+    QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->isAutoRepeat()) {
+        QMainWindow::keyReleaseEvent(event);
+        return;
+    }
+
+    if (m_input && m_input->handleKeyRelease(event->key())) {
+        event->accept();
+        return;
+    }
+
+    QMainWindow::keyReleaseEvent(event);
 }
