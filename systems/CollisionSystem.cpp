@@ -4,6 +4,7 @@
 
 #include "core/GameState.h"
 #include "gameplay/Bullet.h"
+#include "gameplay/EnemyTank.h"
 #include "gameplay/Tank.h"
 #include "world/Base.h"
 #include "world/Map.h"
@@ -72,6 +73,12 @@ void CollisionSystem::resolve(
 
                 if (tank->cell() == cell) {
                     tank->health().takeDamage(1);
+
+                    if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+                        if (enemy->health().isAlive())
+                            enemy->triggerHitFeedback();
+                    }
+
                     destroyBullet = true;
                     break;
                 }

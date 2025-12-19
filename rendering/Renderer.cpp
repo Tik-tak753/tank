@@ -170,6 +170,14 @@ void Renderer::syncTanks(const Game& game)
             m_tankDirectionItems.insert(tank, directionItem);
         }
 
+        QColor bodyColor(40, 160, 32);
+        if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+            if (enemy->isHitFeedbackActive())
+                bodyColor = QColor(230, 230, 230);
+        }
+        if (item->brush().color() != bodyColor)
+            item->setBrush(bodyColor);
+
         const QPointF pos = QPointF(tank->cell()) * size;
         item->setPos(pos);
         directionItem->setRect(barrelRectForDirection(tank->direction()));
