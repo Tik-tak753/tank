@@ -28,12 +28,11 @@ void Bullet::update(int deltaMs)
         return;
 
     m_elapsedMs += static_cast<qsizetype>(deltaMs);
+    if (m_elapsedMs < kStepIntervalMs)
+        return;
 
-    const QPoint delta = stepDelta(m_direction);
-    while (m_elapsedMs >= kStepIntervalMs) {
-        m_cell += delta;
-        m_elapsedMs -= kStepIntervalMs;
-    }
+    m_elapsedMs -= kStepIntervalMs;
+    m_cell += stepDelta(m_direction);
 }
 
 QPoint Bullet::directionDelta() const
