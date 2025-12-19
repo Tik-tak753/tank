@@ -16,13 +16,13 @@ LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& r
 {
     LevelData data;
     const bool hasLines = !lines.isEmpty();
-    const int height = hasLines ? lines.size() : rules.mapSize().height();
-    int width = hasLines ? 0 : rules.mapSize().width();
+    const qsizetype height = hasLines ? lines.size() : static_cast<qsizetype>(rules.mapSize().height());
+    qsizetype width = hasLines ? 0 : static_cast<qsizetype>(rules.mapSize().width());
 
     for (const QString& row : lines)
         width = std::max(width, row.size());
 
-    const QSize mapSize(width, height);
+    const QSize mapSize(static_cast<int>(width), static_cast<int>(height));
     data.map = std::make_unique<Map>(mapSize);
     data.baseCell = rules.baseCell();
     data.playerSpawn = defaultPlayerSpawn(mapSize);
@@ -34,11 +34,11 @@ LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& r
     // 'A' або 'H' — база гравця
     // 'P' — позиція спавну гравця
     // 'E' — позиція спавну ворога
-    for (int y = 0; y < lines.size(); ++y) {
-        const QString& row = lines[y];
-        for (int x = 0; x < row.size(); ++x) {
-            const QChar symbol = row[x];
-            const QPoint cell(x, y);
+    for (qsizetype y = 0; y < lines.size(); ++y) {
+        const QString& row = lines.at(y);
+        for (qsizetype x = 0; x < row.size(); ++x) {
+            const QChar symbol = row.at(x);
+            const QPoint cell(static_cast<int>(x), static_cast<int>(y));
 
             switch (symbol.toLatin1()) {
             case '#':
@@ -78,25 +78,30 @@ LevelData LevelLoader::loadDefaultLevel(const GameRules& rules) const
 {
     const QSize mapSize = rules.mapSize();
     const QPoint base = rules.baseCell();
-    const int centerX = mapSize.width() / 2;
-    const int lastY = mapSize.height() - 1;
+    const qsizetype mapWidth = static_cast<qsizetype>(mapSize.width());
+    const qsizetype mapHeight = static_cast<qsizetype>(mapSize.height());
+    const qsizetype centerX = static_cast<qsizetype>(mapSize.width() / 2);
+    const qsizetype lastY = mapHeight - 1;
+    const qsizetype baseX = static_cast<qsizetype>(base.x());
+    const qsizetype baseY = static_cast<qsizetype>(base.y());
 
     QStringList lines;
-    lines.reserve(mapSize.height());
+    lines.reserve(mapHeight);
 
-    for (int y = 0; y < mapSize.height(); ++y) {
+    for (qsizetype y = 0; y < mapHeight; ++y) {
         QString row;
-        row.reserve(mapSize.width());
-        for (int x = 0; x < mapSize.width(); ++x) {
-            const bool border = (y == 0 || y == lastY || x == 0 || x == mapSize.width() - 1);
-            const bool brickRow = (y % 4 == 2) && (x > 1) && (x < mapSize.width() - 2);
-            const bool baseShield = (y >= base.y() - 1 && y <= base.y()) &&
-                                    (x >= base.x() - 1 && x <= base.x() + 1);
+        row.reserve(mapWidth);
+        for (qsizetype x = 0; x < mapWidth; ++x) {
+            const QPoint cell(static_cast<int>(x), static_cast<int>(y));
+            const bool border = (y == 0 || y == lastY || x == 0 || x == mapWidth - 1);
+            const bool brickRow = (y % 4 == 2) && (x > 1) && (x < mapWidth - 2);
+            const bool baseShield = (y >= baseY - 1 && y <= baseY) &&
+                                    (x >= baseX - 1 && x <= baseX + 1);
 
             if (border) { row.append('S'); continue; }
-            if (QPoint(x, y) == base) { row.append('A'); continue; }
+            if (cell == base) { row.append('A'); continue; }
             if (x == centerX && y == lastY - 1) { row.append('P'); continue; }
-            if (y == 1 && (x == 1 || x == centerX || x == mapSize.width() - 2)) { row.append('E'); continue; }
+            if (y == 1 && (x == 1 || x == centerX || x == mapWidth - 2)) { row.append('E'); continue; }
             if (baseShield) { row.append('#'); continue; }
             if (brickRow) { row.append('#'); continue; }
 

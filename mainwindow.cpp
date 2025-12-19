@@ -42,7 +42,7 @@ MainWindow::MainWindow(QWidget *parent)
     LevelLoader loader;
     GameRules rules;
     rules.setMapSize(QSize(GRID_WIDTH, GRID_HEIGHT));
-    const LevelData level = loader.loadDefaultLevel(rules);
+    LevelData level = loader.loadDefaultLevel(rules);
 
     m_map = std::move(level.map);
 
