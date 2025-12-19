@@ -18,6 +18,7 @@ SOURCES += \
     core/GameRules.cpp \
     core/GameState.cpp \
     gameplay/Bullet.cpp \
+    gameplay/GameObject.cpp \
     gameplay/EnemyTank.cpp \
     gameplay/HealthSystem.cpp \
     gameplay/PlayerTank.cpp \
@@ -56,6 +57,7 @@ HEADERS += \
     core/GameState.h \
     gameplay/Bullet.h \
     gameplay/Direction.h \
+    gameplay/GameObject.h \
     gameplay/EnemyTank.h \
     gameplay/HealthSystem.h \
     gameplay/PlayerTank.h \
