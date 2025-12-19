@@ -4,6 +4,7 @@
 #include <QPoint>
 #include <QSize>
 #include <QVector>
+#include <QtGlobal>
 
 #include "world/Tile.h"
 
@@ -25,6 +26,8 @@ public:
 
 private:
     QSize m_size;
+    qsizetype m_width = 0;
+    qsizetype m_height = 0;
     QVector<QVector<Tile>> m_tiles; // m_tiles[y][x]
 };
 
