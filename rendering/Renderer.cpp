@@ -49,9 +49,14 @@ void Renderer::drawMap(const Game& game)
         return;
 
     const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
-    for (int y = 0; y < map->size().height(); ++y) {
-        for (int x = 0; x < map->size().width(); ++x) {
-            const Tile tile = map->tile(QPoint(x, y));
+    const QSize mapSize = map->size();
+    const qsizetype height = static_cast<qsizetype>(mapSize.height());
+    const qsizetype width = static_cast<qsizetype>(mapSize.width());
+
+    for (qsizetype y = 0; y < height; ++y) {
+        for (qsizetype x = 0; x < width; ++x) {
+            const QPoint cell(static_cast<int>(x), static_cast<int>(y));
+            const Tile tile = map->tile(cell);
             if (tile.type == TileType::Empty)
                 continue;
 
@@ -63,7 +68,7 @@ void Renderer::drawMap(const Game& game)
             if (tile.type == TileType::Base)
                 color = QColor(230, 230, 0);
 
-            QPointF pos(x * tileSize, y * tileSize);
+            const QPointF pos(static_cast<qreal>(x * tileSize), static_cast<qreal>(y * tileSize));
             m_scene->addRect(QRectF(pos, QSizeF(tileSize, tileSize)), QPen(Qt::NoPen), QBrush(color));
         }
     }
@@ -73,7 +78,7 @@ void Renderer::drawTanks(const Game& game)
 {
     const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
     for (Tank* tank : game.tanks()) {
-        QPointF pos = QPointF(tank->cell()) * tileSize;
+        const QPointF pos = QPointF(tank->cell()) * tileSize;
         QColor color = QColor(40, 160, 32);
         m_scene->addRect(QRectF(pos, QSizeF(tileSize, tileSize)), QPen(Qt::black), QBrush(color));
     }
@@ -83,7 +88,7 @@ void Renderer::drawBullets(const Game& game)
 {
     const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
     for (Bullet* bullet : game.bullets()) {
-        QPointF pos = QPointF(bullet->cell()) * tileSize;
+        const QPointF pos = QPointF(bullet->cell()) * tileSize;
         m_scene->addRect(QRectF(pos, QSizeF(tileSize / 2, tileSize / 2)), QPen(Qt::NoPen), QBrush(Qt::yellow));
     }
 }

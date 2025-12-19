@@ -13,11 +13,11 @@ bool WeaponSystem::canShoot() const
     return m_cooldownMs == 0;
 }
 
-Bullet* WeaponSystem::fire(const QPoint& cell, Direction dir)
+std::unique_ptr<Bullet> WeaponSystem::fire(const QPoint& cell, Direction dir)
 {
     if (!canShoot())
         return nullptr;
 
     m_cooldownMs = m_reloadMs;
-    return new Bullet(cell, dir);
+    return std::make_unique<Bullet>(cell, dir);
 }

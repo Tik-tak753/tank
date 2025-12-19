@@ -7,13 +7,11 @@
 class QGraphicsScene;
 class QGraphicsView;
 class QTimer;
-class QGraphicsRectItem;
 class QKeyEvent;
 
-class Map;
-class PlayerTank;
+class Game;
 class InputSystem;
-class Bullet;
+class Renderer;
 
 class MainWindow : public QMainWindow
 {
@@ -32,15 +30,10 @@ private:
     QGraphicsScene* m_scene = nullptr;
     QGraphicsView* m_view = nullptr;
 
-    // Model
-    std::unique_ptr<Map> m_map;
-    std::unique_ptr<PlayerTank> m_player;
+    // Game
+    std::unique_ptr<Game> m_game;
     std::unique_ptr<InputSystem> m_input;
-    std::unique_ptr<Bullet> m_bullet;
-
-    // View (player)
-    QGraphicsRectItem* m_playerItem = nullptr;
-    QGraphicsRectItem* m_bulletItem = nullptr;
+    std::unique_ptr<Renderer> m_renderer;
 
     // Timer
     QTimer* m_timer = nullptr;

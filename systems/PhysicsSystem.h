@@ -12,7 +12,7 @@ class Map;
 class PhysicsSystem
 {
 public:
-    void update(QList<Bullet*>& bullets, const Map& map);
+    void update(QList<Bullet*>& bullets, const Map& map, int deltaMs);
 };
 
 #endif // PHYSICSSYSTEM_H

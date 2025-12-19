@@ -2,6 +2,7 @@
 #define TANK_H
 
 #include <QPoint>
+#include <memory>
 
 #include "gameplay/Direction.h"
 #include "gameplay/GameObject.h"
@@ -36,7 +37,7 @@ public:
 
     virtual void update();
     virtual void updateWithDelta(int deltaMs);
-    virtual Bullet* tryShoot();
+    virtual std::unique_ptr<Bullet> tryShoot();
 
 protected:
     Direction m_direction = Direction::Up;
