@@ -2,15 +2,16 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <memory>
 
 class QGraphicsScene;
+class QGraphicsView;
 class QTimer;
+class QGraphicsRectItem;
 
-class WorldView;
-class TileMap;
-
-class Agent;
-class AgentItem;
+class Map;
+class PlayerTank;
+class InputSystem;
 
 class MainWindow : public QMainWindow
 {
@@ -22,18 +23,19 @@ public:
 
 private:
     // View / Scene
-    QGraphicsScene* scene = nullptr;
-    WorldView* view = nullptr;
+    QGraphicsScene* m_scene = nullptr;
+    QGraphicsView* m_view = nullptr;
 
     // Model
-    TileMap* map = nullptr;
-    Agent* agent = nullptr;
+    std::unique_ptr<Map> m_map;
+    std::unique_ptr<PlayerTank> m_player;
+    std::unique_ptr<InputSystem> m_input;
 
-    // View (agent)
-    AgentItem* agentItem = nullptr;
+    // View (player)
+    QGraphicsRectItem* m_playerItem = nullptr;
 
     // Timer
-    QTimer* timer = nullptr;
+    QTimer* m_timer = nullptr;
 };
 
 #endif // MAINWINDOW_H
