@@ -21,7 +21,7 @@ void GameState::setBaseDestroyed()
 
 void GameState::registerSpawnedEnemy()
 {
-    ++m_aliveEnemies;
+    ++m_aliveEnemies; // spawning an enemy only affects alive count
 }
 
 void GameState::registerEnemyDestroyed()
