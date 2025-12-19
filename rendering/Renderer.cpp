@@ -42,6 +42,7 @@ void Renderer::renderFrame(const Game& game)
     if (!m_scene)
         return;
 
+    updateBaseBlinking(game);
     clearMapLayer();     // DEBUG ONLY
     drawMap(game);       // reflect runtime tile changes
 
@@ -55,6 +56,9 @@ void Renderer::drawMap(const Game& game)
     const Map* map = game.map();
     if (!map)
         return;
+    const Base* base = game.base();
+    const QPoint baseCell = base ? base->cell() : QPoint(-1, -1);
+    const bool blinkPhase = m_baseBlinking && ((m_baseBlinkCounter / 8) % 2 == 0);
 
     const qreal size = tileSize();
     const QSize mapSize = map->size();
@@ -73,8 +77,10 @@ void Renderer::drawMap(const Game& game)
                 color = QColor(193, 68, 14);
             if (tile.type == TileType::Steel)
                 color = QColor(160, 160, 160);
-            if (tile.type == TileType::Base)
-                color = QColor(230, 230, 0);
+            if (tile.type == TileType::Base) {
+                const bool isBaseCell = (base && cell == baseCell);
+                color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
+            }
 
             const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
@@ -222,6 +228,42 @@ void Renderer::updateHud(const Game& game)
 
     if (m_hudItem->toPlainText() != text)
         m_hudItem->setPlainText(text);
+}
+
+void Renderer::updateBaseBlinking(const Game& game)
+{
+    const Base* base = game.base();
+    const Map* map = game.map();
+
+    if (!base || !map) {
+        m_baseBlinking = false;
+        m_baseBlinkCounter = 0;
+        m_lastBaseHealth = -1;
+        return;
+    }
+
+    const QPoint baseCell = base->cell();
+    const bool baseTileExists = map->isInside(baseCell) && map->tile(baseCell).type == TileType::Base;
+    const int currentHealth = base->health();
+    const bool baseDestroyed = game.state().isBaseDestroyed() || base->isDestroyed();
+
+    if (!baseTileExists || baseDestroyed) {
+        m_baseBlinking = false;
+        m_baseBlinkCounter = 0;
+        m_lastBaseHealth = currentHealth;
+        return;
+    }
+
+    if (m_lastBaseHealth != -1 && currentHealth < m_lastBaseHealth)
+        m_baseBlinking = true;
+
+    if (!m_baseBlinking) {
+        m_baseBlinkCounter = 0;
+    } else {
+        ++m_baseBlinkCounter;
+    }
+
+    m_lastBaseHealth = currentHealth;
 }
 
 void Renderer::initializeMap(const Game& game)
