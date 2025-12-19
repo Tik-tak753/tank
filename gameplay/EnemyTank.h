@@ -18,6 +18,9 @@ public:
     void update() override;
     void updateWithDelta(int deltaMs) override;
 
+    bool isHitFeedbackActive() const { return m_hitFeedbackTimerMs > 0; }
+    void triggerHitFeedback();
+
 private:
     QPoint directionDelta() const;
     QPoint directionDelta(Direction direction) const;
@@ -34,6 +37,8 @@ private:
 
     int m_moveElapsedMs = 0;
     int m_moveIntervalMs = 600;
+
+    int m_hitFeedbackTimerMs = 0;
 };
 
 #endif // ENEMYTANK_H

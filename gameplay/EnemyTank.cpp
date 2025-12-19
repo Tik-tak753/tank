@@ -1,6 +1,7 @@
 #include "gameplay/EnemyTank.h"
 
 #include <QRandomGenerator>
+#include <algorithm>
 
 #include "world/Map.h"
 #include "world/Tile.h"
@@ -20,6 +21,9 @@ void EnemyTank::update()
 void EnemyTank::updateWithDelta(int deltaMs)
 {
     Tank::updateWithDelta(deltaMs);
+
+    if (m_hitFeedbackTimerMs > 0)
+        m_hitFeedbackTimerMs = std::max(0, m_hitFeedbackTimerMs - deltaMs);
 
     if (isDestroyed())
         return;
@@ -124,4 +128,10 @@ void EnemyTank::resetFireInterval()
 {
     // Стріляємо з випадковою затримкою в межах 800–1200 мс
     m_fireIntervalMs = QRandomGenerator::global()->bounded(800, 1201);
+}
+
+void EnemyTank::triggerHitFeedback()
+{
+    constexpr int kHitFeedbackDurationMs = 120;
+    m_hitFeedbackTimerMs = kHitFeedbackDurationMs;
 }
