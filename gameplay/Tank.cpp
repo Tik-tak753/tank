@@ -30,7 +30,7 @@ void Tank::updateWithDelta(int deltaMs)
     m_weapon.tick(deltaMs);
 }
 
-Bullet* Tank::tryShoot()
+std::unique_ptr<Bullet> Tank::tryShoot()
 {
     if (!m_fireRequested)
         return nullptr;

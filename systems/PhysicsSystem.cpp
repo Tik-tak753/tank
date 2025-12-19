@@ -3,15 +3,11 @@
 #include "gameplay/Bullet.h"
 #include "world/Map.h"
 
-void PhysicsSystem::update(QList<Bullet*>& bullets, const Map& map)
+void PhysicsSystem::update(QList<Bullet*>& bullets, const Map& map, int deltaMs)
 {
-    for (Bullet* bullet : bullets)
-        bullet->update(16, map);
-
-    for (int i = bullets.size() - 1; i >= 0; --i) {
-        if (!bullets.at(i)->isAlive()) {
-            delete bullets.at(i);
-            bullets.removeAt(i);
-        }
+    for (Bullet* bullet : bullets) {
+        if (!bullet)
+            continue;
+        bullet->update(deltaMs, map);
     }
 }

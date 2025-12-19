@@ -2,6 +2,7 @@
 #define WEAPONSYSTEM_H
 
 #include <QPoint>
+#include <memory>
 
 #include "gameplay/Direction.h"
 
@@ -18,7 +19,7 @@ public:
     void tick(int deltaMs);
 
     bool canShoot() const;
-    Bullet* fire(const QPoint& cell, Direction dir);
+    std::unique_ptr<Bullet> fire(const QPoint& cell, Direction dir);
 
 private:
     int m_reloadMs = 500;

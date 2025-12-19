@@ -1,28 +1,16 @@
 #include "mainwindow.h"
 
-#include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QTimer>
 #include <QPoint>
-#include <QPointF>
-#include <QSize>
-#include <utility>
-#include <QBrush>
-#include <QColor>
-#include <QPen>
-#include <QSizeF>
 #include <QKeyEvent>
+#include <QSize>
 
-#include "core/GameRules.h"
-#include "gameplay/Bullet.h"
-#include "gameplay/Direction.h"
-#include "gameplay/PlayerTank.h"
+#include "core/Game.h"
 #include "systems/InputSystem.h"
+#include "rendering/Renderer.h"
 #include "utils/Constants.h"
-#include "world/LevelLoader.h"
-#include "world/Map.h"
-#include "world/Tile.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -40,53 +28,20 @@ MainWindow::MainWindow(QWidget *parent)
     m_view->setFocus();
 
     /* =====================
-     * Map
+     * Game
      * ===================== */
 
-    LevelLoader loader;
-    GameRules rules;
-    rules.setMapSize(QSize(GRID_WIDTH, GRID_HEIGHT));
-    LevelData level = loader.loadDefaultLevel(rules);
-
-    m_map = std::move(level.map);
-
-    // Малюємо карту один раз
-    for (int y = 0; y < m_map->size().height(); ++y) {
-        for (int x = 0; x < m_map->size().width(); ++x) {
-            const Tile tile = m_map->tile(QPoint(x, y));
-            if (tile.type == TileType::Empty)
-                continue;
-
-            QColor color = Qt::gray;
-            if (tile.type == TileType::Brick)
-                color = QColor(193, 68, 14);
-            if (tile.type == TileType::Steel)
-                color = QColor(160, 160, 160);
-            if (tile.type == TileType::Base)
-                color = QColor(230, 230, 0);
-
-            QPointF pos(x * TILE_SIZE, y * TILE_SIZE);
-            m_scene->addRect(QRectF(pos, QSizeF(TILE_SIZE, TILE_SIZE)), QPen(Qt::NoPen), QBrush(color));
-        }
-    }
-
-    /* =====================
-     * PlayerTank (MODEL)
-     * ===================== */
-
+    m_game = std::make_unique<Game>(this);
     m_input = std::make_unique<InputSystem>();
 
-    m_player = std::make_unique<PlayerTank>(level.playerSpawn);
-    m_player->setInput(m_input.get());
-    m_player->setMap(m_map.get());
+    GameRules& rules = m_game->rules();
+    rules.setMapSize(QSize(GRID_WIDTH, GRID_HEIGHT));
+    rules.setBaseCell(QPoint(GRID_WIDTH / 2, GRID_HEIGHT - 2));
 
-    /* =====================
-     * Player QGraphicsItem (VIEW)
-     * ===================== */
+    m_game->setInputSystem(m_input.get());
+    m_game->initialize();
 
-    const QPoint spawn = m_player->cell();
-    const QRectF rect(QPointF(spawn) * TILE_SIZE, QSizeF(TILE_SIZE, TILE_SIZE));
-    m_playerItem = m_scene->addRect(rect, QPen(Qt::black), QBrush(QColor(40, 160, 32)));
+    m_renderer = std::make_unique<Renderer>(m_scene);
 
     /* =====================
      * Timer / GameLoop
@@ -95,39 +50,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, [this]() {
         const int deltaMs = 16; // ~60 FPS
-        m_player->updateWithDelta(deltaMs);
-
-        if (!m_bullet) {
-            if (Bullet* spawned = m_player->tryShoot()) {
-                m_bullet.reset(spawned);
-                if (!m_bulletItem) {
-                    m_bulletItem = m_scene->addRect(QRectF(), QPen(Qt::NoPen), QBrush(Qt::yellow));
-                }
-                const QPoint bulletCell = m_bullet->cell();
-                const QPointF bulletPos = QPointF(bulletCell) * TILE_SIZE;
-                const QSizeF bulletSize(TILE_SIZE / 2, TILE_SIZE / 2);
-                m_bulletItem->setRect(QRectF(bulletPos, bulletSize));
-                m_bulletItem->setVisible(true);
-            }
-        }
-
-        if (m_bullet) {
-            m_bullet->update(deltaMs, *m_map);
-            if (!m_bullet->isAlive()) {
-                m_bullet.reset();
-                if (m_bulletItem)
-                    m_bulletItem->setVisible(false);
-            } else if (m_bulletItem) {
-                const QPoint bulletCell = m_bullet->cell();
-                const QPointF bulletPos = QPointF(bulletCell) * TILE_SIZE;
-                const QSizeF bulletSize(TILE_SIZE / 2, TILE_SIZE / 2);
-                m_bulletItem->setRect(QRectF(bulletPos, bulletSize));
-            }
-        }
-
-        const QPoint cell = m_player->cell();
-        const QPointF pixelPos = QPointF(cell) * TILE_SIZE;
-        m_playerItem->setRect(QRectF(pixelPos, QSizeF(TILE_SIZE, TILE_SIZE)));
+        m_game->update(deltaMs);
+        if (m_renderer)
+            m_renderer->renderFrame(*m_game);
     });
     m_timer->start(16);
 }

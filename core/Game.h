@@ -7,17 +7,17 @@
 
 #include "core/GameState.h"
 #include "core/GameRules.h"
-#include "core/GameLoop.h"
 
 class Tank;
 class PlayerTank;
 class EnemyTank;
 class Bullet;
-class Renderer;
 class InputSystem;
 class LevelLoader;
 class Map;
 class Base;
+class PhysicsSystem;
+class CollisionSystem;
 
 /*
  * Game — центральний фасад, який зшиває усі підсистеми разом.
@@ -34,12 +34,8 @@ public:
     // Підготовка базового рівня та створення сутностей
     void initialize();
 
-    // Запуск ігрового циклу
-    void start();
-    void stop();
-
-    // Крок оновлення (викликається GameLoop)
-    void update();
+    // Крок оновлення (викликається MainWindow)
+    void update(int deltaMs);
 
     const GameState& state() const { return m_state; }
     GameRules& rules() { return m_rules; }
@@ -50,31 +46,32 @@ public:
     Map* map() const { return m_map.get(); }
     Base* base() const { return m_base.get(); }
 
-    // Для інтеграції з UI
-    void setRenderer(Renderer* renderer);
     void setInputSystem(InputSystem* input);
+    PlayerTank* player() const { return m_player; }
 
 private:
-    // Прапорці для розділення фаз життєвого циклу
-    bool m_initialized = false;
-    bool m_running = false;
-    int m_tickCounter = 0;
+    void clearWorld();
+    void updateTanks(int deltaMs);
+    void spawnPendingBullets();
+    void removeDeadTanks();
 
     GameRules m_rules;
     GameState m_state;
-    GameLoop m_loop;
 
     std::unique_ptr<Map> m_map;
     std::unique_ptr<Base> m_base;
+    std::unique_ptr<LevelLoader> m_levelLoader;
 
     QList<Tank*> m_tanks;
     QList<EnemyTank*> m_enemies;
     QList<Bullet*> m_bullets;
+    QList<std::unique_ptr<Bullet>> m_pendingBullets;
 
-    Renderer* m_renderer = nullptr;
     InputSystem* m_inputSystem = nullptr;
+    PlayerTank* m_player = nullptr;
 
-    std::unique_ptr<LevelLoader> m_levelLoader;
+    std::unique_ptr<PhysicsSystem> m_physicsSystem;
+    std::unique_ptr<CollisionSystem> m_collisionSystem;
 };
 
 #endif // GAME_H
