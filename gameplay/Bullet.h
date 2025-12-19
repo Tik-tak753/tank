@@ -6,19 +6,22 @@
 
 #include "gameplay/Direction.h"
 
+class Tank;
+
 /*
  * Bullet відповідає за рух снаряду та його життєвий цикл.
  */
 class Bullet
 {
 public:
-    Bullet(const QPoint& cell, Direction dir);
+    Bullet(const QPoint& cell, Direction dir, const Tank* owner);
 
     QPoint cell() const { return m_cell; }
     Direction direction() const { return m_direction; }
     QPoint directionDelta() const;
     QPoint nextCell() const;
     bool isAlive() const { return m_alive; }
+    const Tank* owner() const { return m_owner; }
 
     void update(int deltaMs);
     void destroy();
@@ -26,6 +29,7 @@ public:
 private:
     QPoint m_cell;
     Direction m_direction;
+    const Tank* m_owner = nullptr;
     qsizetype m_elapsedMs = 0;
     bool m_alive = true;
 };

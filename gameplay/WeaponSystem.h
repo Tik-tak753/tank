@@ -7,6 +7,7 @@
 #include "gameplay/Direction.h"
 
 class Bullet;
+class Tank;
 
 /*
  * WeaponSystem відповідає за перезарядку та створення снарядів.
@@ -19,7 +20,7 @@ public:
     void tick(int deltaMs);
 
     bool canShoot() const;
-    std::unique_ptr<Bullet> fire(const QPoint& cell, Direction dir);
+    std::unique_ptr<Bullet> fire(const QPoint& cell, Direction dir, const Tank* owner);
 
 private:
     int m_reloadMs = 500;
