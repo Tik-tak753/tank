@@ -105,14 +105,15 @@ void Game::updateTanks(int deltaMs)
         tank->updateWithDelta(deltaMs);
         std::unique_ptr<Bullet> bullet = tank->tryShoot();
         if (bullet)
-            m_pendingBullets.append(std::move(bullet));
+            m_pendingBullets.push_back(std::move(bullet));
     }
 }
 
 void Game::spawnPendingBullets()
 {
-    while (!m_pendingBullets.isEmpty()) {
-        std::unique_ptr<Bullet> bullet = m_pendingBullets.takeLast();
+    while (!m_pendingBullets.empty()) {
+        std::unique_ptr<Bullet> bullet = std::move(m_pendingBullets.back());
+        m_pendingBullets.pop_back();
         m_bullets.append(bullet.release());
     }
 }

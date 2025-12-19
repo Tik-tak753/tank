@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QList>
+#include <vector>
 #include <memory>
 
 #include "core/GameState.h"
@@ -65,7 +66,7 @@ private:
     QList<Tank*> m_tanks;
     QList<EnemyTank*> m_enemies;
     QList<Bullet*> m_bullets;
-    QList<std::unique_ptr<Bullet>> m_pendingBullets;
+    std::vector<std::unique_ptr<Bullet>> m_pendingBullets;
 
     InputSystem* m_inputSystem = nullptr;
     PlayerTank* m_player = nullptr;
