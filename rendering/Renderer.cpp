@@ -100,7 +100,9 @@ void Renderer::syncTanks(const Game& game)
     auto it = m_tankItems.begin();
     while (it != m_tankItems.end()) {
         if (!seen.contains(it.key())) {
-            delete it.value();
+            QGraphicsItem* item = it.value();
+            m_scene->removeItem(item);
+            delete item;
             it = m_tankItems.erase(it);
         } else {
             ++it;
@@ -132,7 +134,9 @@ void Renderer::syncBullets(const Game& game)
     auto it = m_bulletItems.begin();
     while (it != m_bulletItems.end()) {
         if (!seen.contains(it.key())) {
-            delete it.value();
+            QGraphicsItem* item = it.value();
+            m_scene->removeItem(item);
+            delete item;
             it = m_bulletItems.erase(it);
         } else {
             ++it;
@@ -152,8 +156,10 @@ void Renderer::initializeMap(const Game& game)
 
 void Renderer::clearMapLayer()
 {
-    for (QGraphicsItem* item : m_mapItems)
+    for (QGraphicsItem* item : m_mapItems) {
+        m_scene->removeItem(item);
         delete item;
+    }
     m_mapItems.clear();
 }
 
