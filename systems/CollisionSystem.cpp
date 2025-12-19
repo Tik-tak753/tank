@@ -27,6 +27,9 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
             case TileType::Empty:
                 break;
             case TileType::Brick:
+                map.setTile(cell, TileFactory::empty());
+                destroyBullet = true;
+                break;
             case TileType::Steel:
                 destroyBullet = true;
                 break;
