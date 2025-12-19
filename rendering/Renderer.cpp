@@ -58,6 +58,7 @@ void Renderer::drawMap(const Game& game)
         return;
     const Base* base = game.base();
     const QPoint baseCell = base ? base->cell() : QPoint(-1, -1);
+    const bool baseDestroyed = base && base->isDestroyed();
     const bool blinkPhase = m_baseBlinking && ((m_baseBlinkCounter / 8) % 2 == 0);
 
     const qreal size = tileSize();
@@ -79,13 +80,25 @@ void Renderer::drawMap(const Game& game)
                 color = QColor(160, 160, 160);
             if (tile.type == TileType::Base) {
                 const bool isBaseCell = (base && cell == baseCell);
-                color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
+                if (isBaseCell && baseDestroyed) {
+                    color = QColor(60, 60, 60);
+                } else {
+                    color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
+                }
             }
 
             const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
             item->setZValue(0);
             m_mapItems.append(item);
+
+            if (tile.type == TileType::Base && baseDestroyed && cell == baseCell) {
+                const qreal markerMargin = size * 0.25;
+                const QRectF markerRect(pos + QPointF(markerMargin, markerMargin), QSizeF(size - 2 * markerMargin, size - 2 * markerMargin));
+                QGraphicsRectItem* marker = m_scene->addRect(markerRect, QPen(Qt::NoPen), QBrush(QColor(30, 30, 30)));
+                marker->setZValue(1);
+                m_mapItems.append(marker);
+            }
         }
     }
 }
