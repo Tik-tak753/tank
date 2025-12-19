@@ -22,6 +22,8 @@ public:
     // Доступ до агрегованих даних
     int remainingLives() const;
     int remainingEnemies() const;
+    int aliveEnemies() const;
+    int enemiesToSpawn() const;
     bool isBaseDestroyed() const;
 
     // Перевірка умов завершення
@@ -31,6 +33,7 @@ public:
 private:
     int m_playerLives = 0;
     int m_enemiesLeft = 0;
+    int m_aliveEnemies = 0;
     bool m_baseDestroyed = false;
 };
 

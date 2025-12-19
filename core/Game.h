@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QList>
+#include <QPoint>
 #include <vector>
 #include <memory>
 
@@ -56,6 +57,9 @@ private:
     void updateTanks(int deltaMs);
     void spawnPendingBullets();
     void removeDeadTanks();
+    void updateEnemySpawning(int deltaMs);
+    bool trySpawnEnemy();
+    bool canSpawnEnemyAt(const QPoint& cell) const;
 
     GameRules m_rules;
     GameState m_state;
@@ -74,6 +78,12 @@ private:
 
     std::unique_ptr<PhysicsSystem> m_physicsSystem;
     std::unique_ptr<CollisionSystem> m_collisionSystem;
+
+    QList<QPoint> m_enemySpawnPoints;
+    qsizetype m_nextSpawnIndex = 0;
+    int m_maxAliveEnemies = 0;
+    int m_enemySpawnCooldownMs = 0;
+    int m_enemyRespawnDelayMs = 800;
 };
 
 #endif // GAME_H
