@@ -10,6 +10,8 @@
 #include <QPen>
 #include <QSet>
 #include <QtGlobal>
+#include <algorithm>
+#include <utility>
 
 #include "core/Game.h"
 #include "gameplay/Bullet.h"
@@ -48,6 +50,7 @@ void Renderer::renderFrame(const Game& game)
 
     syncTanks(game);
     syncBullets(game);
+    updateExplosions();
     updateHud(game);
 }
 
@@ -177,9 +180,10 @@ void Renderer::syncTanks(const Game& game)
 
 void Renderer::syncBullets(const Game& game)
 {
+    const Map* map = game.map();
     const qreal size = tileSize();
     const qreal bulletSize = size / 2.0;
-    QSet<const Bullet*> seen;
+    QSet<const Bullet*> currentBullets;
 
     const QPointF bulletOffset((size - bulletSize) / 2.0, (size - bulletSize) / 2.0);
 
@@ -187,7 +191,7 @@ void Renderer::syncBullets(const Game& game)
         if (!bullet || !bullet->isAlive())
             continue;
 
-        seen.insert(bullet);
+        currentBullets.insert(bullet);
         QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
@@ -197,11 +201,21 @@ void Renderer::syncBullets(const Game& game)
 
         const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
         item->setPos(pos);
+        m_lastBulletCells.insert(bullet, bullet->cell());
+    }
+
+    for (const Bullet* bullet : m_previousBullets) {
+        if (!currentBullets.contains(bullet)) {
+            const QPoint cell = m_lastBulletCells.value(bullet, QPoint(-1, -1));
+            if (map && map->isInside(cell))
+                m_explosions.append(Explosion{cell, 12});
+            m_lastBulletCells.remove(bullet);
+        }
     }
 
     auto it = m_bulletItems.begin();
     while (it != m_bulletItems.end()) {
-        if (!seen.contains(it.key())) {
+        if (!currentBullets.contains(it.key())) {
             QGraphicsItem* item = it.value();
             m_scene->removeItem(item);
             delete item;
@@ -210,6 +224,16 @@ void Renderer::syncBullets(const Game& game)
             ++it;
         }
     }
+
+    auto cellIt = m_lastBulletCells.begin();
+    while (cellIt != m_lastBulletCells.end()) {
+        if (!currentBullets.contains(cellIt.key()))
+            cellIt = m_lastBulletCells.erase(cellIt);
+        else
+            ++cellIt;
+    }
+
+    m_previousBullets = currentBullets;
 }
 
 void Renderer::updateHud(const Game& game)
@@ -301,4 +325,31 @@ void Renderer::clearMapLayer()
 qreal Renderer::tileSize() const
 {
     return static_cast<qreal>(m_camera ? m_camera->tileSize() : TILE_SIZE);
+}
+
+void Renderer::updateExplosions()
+{
+    for (Explosion& explosion : m_explosions)
+        --explosion.ttlFrames;
+
+    auto it = std::remove_if(m_explosions.begin(), m_explosions.end(), [](const Explosion& e) { return e.ttlFrames <= 0; });
+    m_explosions.erase(it, m_explosions.end());
+
+    for (QGraphicsRectItem* item : m_explosionItems) {
+        m_scene->removeItem(item);
+        delete item;
+    }
+    m_explosionItems.clear();
+
+    const qreal size = tileSize();
+    const qreal explosionSize = size * 0.7;
+    const QPointF offset((size - explosionSize) / 2.0, (size - explosionSize) / 2.0);
+    const QBrush brush(QColor(255, 140, 0));
+
+    for (const Explosion& explosion : std::as_const(m_explosions)) {
+        const QPointF pos = QPointF(explosion.cell) * size + offset;
+        QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(explosionSize, explosionSize)), QPen(Qt::NoPen), brush);
+        item->setZValue(25);
+        m_explosionItems.append(item);
+    }
 }
