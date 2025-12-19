@@ -20,7 +20,10 @@ public:
 
 private:
     QPoint directionDelta() const;
+    QPoint directionDelta(Direction direction) const;
     Direction oppositeDirection() const;
+    Direction randomDirection(Direction exclude) const;
+    bool canMove(Direction direction) const;
     void tryMove();
     void resetFireInterval();
 
