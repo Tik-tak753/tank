@@ -22,27 +22,33 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
         if (!map.isInside(cell)) {
             destroyBullet = true;
         } else {
-            const Tile target = map.tile(cell);
-            switch (target.type) {
-            case TileType::Empty:
-                break;
-            case TileType::Brick:
-                map.setTile(cell, TileFactory::empty());
+            if (base && state.isBaseDestroyed() && base->cell() == cell) {
                 destroyBullet = true;
-                break;
-            case TileType::Steel:
-                destroyBullet = true;
-                break;
-            case TileType::Base:
-                destroyBullet = true;
-                if (base)
-                    base->takeDamage();
-
-                if (base && base->isDestroyed()) {
+            } else {
+                const Tile target = map.tile(cell);
+                switch (target.type) {
+                case TileType::Empty:
+                    break;
+                case TileType::Brick:
                     map.setTile(cell, TileFactory::empty());
-                    state.setBaseDestroyed();
+                    destroyBullet = true;
+                    break;
+                case TileType::Steel:
+                    destroyBullet = true;
+                    break;
+                case TileType::Base:
+                    destroyBullet = true;
+                    if (base && !state.isBaseDestroyed()) {
+                        if (!base->isDestroyed())
+                            base->takeDamage();
+
+                        if (base->isDestroyed()) {
+                            state.setBaseDestroyed();
+                            map.setTile(cell, TileFactory::empty());
+                        }
+                    }
+                    break;
                 }
-                break;
             }
         }
 
