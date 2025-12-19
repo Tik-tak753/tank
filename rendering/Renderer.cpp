@@ -2,9 +2,12 @@
 
 #include <QBrush>
 #include <QColor>
+#include <QGraphicsItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QPen>
+#include <QSet>
+#include <QtGlobal>
 
 #include "core/Game.h"
 #include "gameplay/Bullet.h"
@@ -36,10 +39,9 @@ void Renderer::renderFrame(const Game& game)
     if (!m_scene)
         return;
 
-    m_scene->clear();
-    drawMap(game);
-    drawTanks(game);
-    drawBullets(game);
+    initializeMap(game);
+    syncTanks(game);
+    syncBullets(game);
 }
 
 void Renderer::drawMap(const Game& game)
@@ -48,7 +50,7 @@ void Renderer::drawMap(const Game& game)
     if (!map)
         return;
 
-    const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
+    const qreal size = tileSize();
     const QSize mapSize = map->size();
     const qsizetype height = static_cast<qsizetype>(mapSize.height());
     const qsizetype width = static_cast<qsizetype>(mapSize.width());
@@ -68,27 +70,94 @@ void Renderer::drawMap(const Game& game)
             if (tile.type == TileType::Base)
                 color = QColor(230, 230, 0);
 
-            const QPointF pos(static_cast<qreal>(x * tileSize), static_cast<qreal>(y * tileSize));
-            m_scene->addRect(QRectF(pos, QSizeF(tileSize, tileSize)), QPen(Qt::NoPen), QBrush(color));
+            const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
+            QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
+            m_mapItems.append(item);
         }
     }
 }
 
-void Renderer::drawTanks(const Game& game)
+void Renderer::syncTanks(const Game& game)
 {
-    const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
+    const qreal size = tileSize();
+    QSet<const Tank*> seen;
+
     for (Tank* tank : game.tanks()) {
-        const QPointF pos = QPointF(tank->cell()) * tileSize;
-        QColor color = QColor(40, 160, 32);
-        m_scene->addRect(QRectF(pos, QSizeF(tileSize, tileSize)), QPen(Qt::black), QBrush(color));
+        if (!tank)
+            continue;
+
+        seen.insert(tank);
+        QGraphicsRectItem* item = m_tankItems.value(tank, nullptr);
+        if (!item) {
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
+            m_tankItems.insert(tank, item);
+        }
+
+        const QPointF pos = QPointF(tank->cell()) * size;
+        item->setPos(pos);
+    }
+
+    auto it = m_tankItems.begin();
+    while (it != m_tankItems.end()) {
+        if (!seen.contains(it.key())) {
+            delete it.value();
+            it = m_tankItems.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 
-void Renderer::drawBullets(const Game& game)
+void Renderer::syncBullets(const Game& game)
 {
-    const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
+    const qreal size = tileSize();
+    const qreal bulletSize = size / 2.0;
+    QSet<const Bullet*> seen;
+
     for (Bullet* bullet : game.bullets()) {
-        const QPointF pos = QPointF(bullet->cell()) * tileSize;
-        m_scene->addRect(QRectF(pos, QSizeF(tileSize / 2, tileSize / 2)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+        if (!bullet)
+            continue;
+
+        seen.insert(bullet);
+        QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
+        if (!item) {
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+            m_bulletItems.insert(bullet, item);
+        }
+
+        const QPointF pos = QPointF(bullet->cell()) * size;
+        item->setPos(pos);
     }
+
+    auto it = m_bulletItems.begin();
+    while (it != m_bulletItems.end()) {
+        if (!seen.contains(it.key())) {
+            delete it.value();
+            it = m_bulletItems.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void Renderer::initializeMap(const Game& game)
+{
+    const Map* map = game.map();
+    if (m_cachedMap != map) {
+        clearMapLayer();
+        m_cachedMap = map;
+        drawMap(game);
+    }
+}
+
+void Renderer::clearMapLayer()
+{
+    for (QGraphicsItem* item : m_mapItems)
+        delete item;
+    m_mapItems.clear();
+}
+
+qreal Renderer::tileSize() const
+{
+    return static_cast<qreal>(m_camera ? m_camera->tileSize() : TILE_SIZE);
 }

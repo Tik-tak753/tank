@@ -61,8 +61,8 @@ void Game::update(int deltaMs)
     updateTanks(deltaMs);
     spawnPendingBullets();
 
-    if (m_physicsSystem && m_map)
-        m_physicsSystem->update(m_bullets, *m_map, deltaMs);
+    if (m_physicsSystem)
+        m_physicsSystem->update(m_bullets, deltaMs);
 
     if (m_collisionSystem && m_map)
         m_collisionSystem->resolve(*m_map, m_tanks, m_bullets, m_base.get(), m_state);

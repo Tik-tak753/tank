@@ -1,10 +1,13 @@
 #include "systems/CollisionSystem.h"
 
+#include <QtGlobal>
+
 #include "core/GameState.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/Tank.h"
 #include "world/Base.h"
 #include "world/Map.h"
+#include "world/Tile.h"
 
 void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bullets, Base* base, GameState& state)
 {
@@ -14,23 +17,37 @@ void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bul
             continue;
 
         const QPoint cell = bullet->cell();
+        const QPoint nextCell = bullet->nextCell();
         bool destroyBullet = false;
 
-        if (!map.isInside(cell))
+        if (!map.isInside(nextCell)) {
             destroyBullet = true;
-
-        for (Tank* tank : tanks) {
-            if (tank && tank->cell() == cell) {
-                tank->health().takeDamage(1);
+        } else {
+            const Tile target = map.tile(nextCell);
+            switch (target.type) {
+            case TileType::Empty:
+                break;
+            case TileType::Brick:
+            case TileType::Steel:
                 destroyBullet = true;
+                break;
+            case TileType::Base:
+                destroyBullet = true;
+                state.setBaseDestroyed();
+                if (base)
+                    base->takeDamage();
                 break;
             }
         }
 
-        if (base && base->cell() == cell) {
-            base->takeDamage();
-            state.setBaseDestroyed();
-            destroyBullet = true;
+        if (!destroyBullet) {
+            for (Tank* tank : tanks) {
+                if (tank && tank->cell() == cell) {
+                    tank->health().takeDamage(1);
+                    destroyBullet = true;
+                    break;
+                }
+            }
         }
 
         if (destroyBullet)
