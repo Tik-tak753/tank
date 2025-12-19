@@ -80,7 +80,24 @@ void Renderer::drawMap(const Game& game)
 void Renderer::syncTanks(const Game& game)
 {
     const qreal size = tileSize();
+    const qreal barrelLength = size * 0.6;
+    const qreal barrelThickness = size * 0.2;
     QSet<const Tank*> seen;
+
+    auto barrelRectForDirection = [&](Direction dir) {
+        switch (dir) {
+        case Direction::Up:
+            return QRectF((size - barrelThickness) / 2.0, 0, barrelThickness, barrelLength);
+        case Direction::Down:
+            return QRectF((size - barrelThickness) / 2.0, size - barrelLength, barrelThickness, barrelLength);
+        case Direction::Left:
+            return QRectF(0, (size - barrelThickness) / 2.0, barrelLength, barrelThickness);
+        case Direction::Right:
+            return QRectF(size - barrelLength, (size - barrelThickness) / 2.0, barrelLength, barrelThickness);
+        }
+
+        return QRectF();
+    };
 
     for (Tank* tank : game.tanks()) {
         if (!tank)
@@ -93,8 +110,16 @@ void Renderer::syncTanks(const Game& game)
             m_tankItems.insert(tank, item);
         }
 
+        QGraphicsRectItem* directionItem = m_tankDirectionItems.value(tank, nullptr);
+        if (!directionItem) {
+            directionItem = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(barrelThickness, barrelLength)), QPen(Qt::NoPen), QBrush(Qt::black));
+            m_tankDirectionItems.insert(tank, directionItem);
+        }
+
         const QPointF pos = QPointF(tank->cell()) * size;
         item->setPos(pos);
+        directionItem->setRect(barrelRectForDirection(tank->direction()));
+        directionItem->setPos(pos);
     }
 
     auto it = m_tankItems.begin();
@@ -106,6 +131,18 @@ void Renderer::syncTanks(const Game& game)
             it = m_tankItems.erase(it);
         } else {
             ++it;
+        }
+    }
+
+    auto dirIt = m_tankDirectionItems.begin();
+    while (dirIt != m_tankDirectionItems.end()) {
+        if (!seen.contains(dirIt.key())) {
+            QGraphicsItem* item = dirIt.value();
+            m_scene->removeItem(item);
+            delete item;
+            dirIt = m_tankDirectionItems.erase(dirIt);
+        } else {
+            ++dirIt;
         }
     }
 }
