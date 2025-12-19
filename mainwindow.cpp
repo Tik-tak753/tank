@@ -90,6 +90,19 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    if (event->key() == Qt::Key_R && m_game && m_game->state().isBaseDestroyed()) {
+        m_game->restart();
+
+        if (m_gameOverItem) {
+            m_scene->removeItem(m_gameOverItem);
+            delete m_gameOverItem;
+            m_gameOverItem = nullptr;
+        }
+
+        event->accept();
+        return;
+    }
+
     if (m_input && m_input->handleKeyPress(event->key())) {
         event->accept();
         return;
