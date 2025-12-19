@@ -5,6 +5,8 @@
 #include <QGraphicsItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
+#include <QGraphicsTextItem>
+#include <QFont>
 #include <QPen>
 #include <QSet>
 #include <QtGlobal>
@@ -12,6 +14,7 @@
 #include "core/Game.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/Tank.h"
+#include "gameplay/EnemyTank.h"
 #include "rendering/Camera.h"
 #include "rendering/SpriteManager.h"
 #include "utils/Constants.h"
@@ -44,6 +47,7 @@ void Renderer::renderFrame(const Game& game)
 
     syncTanks(game);
     syncBullets(game);
+    updateHud(game);
 }
 
 void Renderer::drawMap(const Game& game)
@@ -187,6 +191,37 @@ void Renderer::syncBullets(const Game& game)
             ++it;
         }
     }
+}
+
+void Renderer::updateHud(const Game& game)
+{
+    if (!m_scene)
+        return;
+
+    if (!m_hudItem) {
+        m_hudItem = m_scene->addText(QString());
+        m_hudItem->setDefaultTextColor(Qt::white);
+        QFont font = m_hudItem->font();
+        font.setPointSize(16);
+        m_hudItem->setFont(font);
+        m_hudItem->setZValue(100);
+        m_hudItem->setPos(10, 10);
+    }
+
+    const int lives = game.state().remainingLives();
+
+    int enemyCount = 0;
+    for (Tank* tank : game.tanks()) {
+        if (dynamic_cast<EnemyTank*>(tank))
+            ++enemyCount;
+    }
+
+    const QString text = QStringLiteral("LIVES: %1\nENEMIES: %2")
+                             .arg(lives)
+                             .arg(enemyCount);
+
+    if (m_hudItem->toPlainText() != text)
+        m_hudItem->setPlainText(text);
 }
 
 void Renderer::initializeMap(const Game& game)
