@@ -246,7 +246,8 @@ void Renderer::syncBullets(const Game& game)
     for (const Bullet* bullet : m_previousBullets) {
         if (!currentBullets.contains(bullet)) {
             const QPoint cell = m_lastBulletCells.value(bullet, QPoint(-1, -1));
-            if (map && map->isInside(cell))
+            const bool shouldExplode = !bullet || bullet->spawnExplosionOnDestroy();
+            if (map && map->isInside(cell) && shouldExplode)
                 m_explosions.append(Explosion{cell, 12});
             m_lastBulletCells.remove(bullet);
         }

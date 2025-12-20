@@ -46,7 +46,8 @@ QPoint Bullet::nextCell() const
     return m_cell + directionDelta();
 }
 
-void Bullet::destroy()
+void Bullet::destroy(bool spawnExplosion)
 {
+    m_spawnExplosionOnDestroy = spawnExplosion;
     m_alive = false;
 }
