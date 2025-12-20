@@ -43,13 +43,16 @@ void Game::initialize()
     m_map = std::move(level.map);
     m_base = std::make_unique<Base>(level.baseCell);
     m_enemySpawnPoints = level.enemySpawns;
+    m_playerSpawn = level.playerSpawn;
     m_maxAliveEnemies = m_rules.enemiesPerWave();
     m_nextSpawnIndex = 0;
     m_enemySpawnCooldownMs = 0;
+    m_playerRespawnCooldownMs = 0;
 
-    auto player = std::make_unique<PlayerTank>(level.playerSpawn);
+    auto player = std::make_unique<PlayerTank>(m_playerSpawn);
     player->setMap(m_map.get());
     player->setInput(m_inputSystem);
+    player->setDirection(Direction::Up);
 
     m_player = player.get();
     m_tanks.append(player.release());
@@ -98,6 +101,7 @@ void Game::update(int deltaMs)
     m_pendingBullets.clear();
 
     removeDeadTanks();
+    updatePlayerRespawn(deltaMs);
     updateEnemySpawning(deltaMs);
 }
 
@@ -116,6 +120,8 @@ void Game::clearWorld()
     m_base.reset();
     m_player = nullptr;
     m_enemySpawnPoints.clear();
+    m_playerSpawn = QPoint();
+    m_playerRespawnCooldownMs = 0;
 }
 
 void Game::updateTanks(int deltaMs)
@@ -157,6 +163,8 @@ void Game::removeDeadTanks()
         if (tank == m_player) {
             m_player = nullptr;
             m_state.registerPlayerLostLife();
+            if (m_state.remainingLives() > 0)
+                m_playerRespawnCooldownMs = m_playerRespawnDelayMs;
         } else if (dynamic_cast<EnemyTank*>(tank)) {
             m_enemies.removeOne(static_cast<EnemyTank*>(tank));
             m_state.registerEnemyDestroyed();
@@ -169,6 +177,32 @@ void Game::removeDeadTanks()
 
     if (enemyDestroyed && m_state.enemiesToSpawn() > 0 && m_enemySpawnCooldownMs == 0)
         m_enemySpawnCooldownMs = m_enemyRespawnDelayMs;
+}
+
+void Game::updatePlayerRespawn(int deltaMs)
+{
+    if (m_player || !m_map)
+        return;
+
+    if (m_state.remainingLives() <= 0)
+        return;
+
+    if (m_playerRespawnCooldownMs > 0)
+        m_playerRespawnCooldownMs = qMax(0, m_playerRespawnCooldownMs - deltaMs);
+
+    if (m_playerRespawnCooldownMs > 0)
+        return;
+
+    if (!canSpawnEnemyAt(m_playerSpawn))
+        return;
+
+    auto player = std::make_unique<PlayerTank>(m_playerSpawn);
+    player->setMap(m_map.get());
+    player->setInput(m_inputSystem);
+    player->setDirection(Direction::Up);
+
+    m_player = player.get();
+    m_tanks.append(player.release());
 }
 
 void Game::updateEnemySpawning(int deltaMs)
