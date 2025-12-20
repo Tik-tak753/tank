@@ -68,7 +68,6 @@ private:
     QList<Explosion> m_explosions;
     QSet<QPoint> m_previousBulletCells;
     QHash<QPoint, bool> m_previousBulletExplosionFlags;
-    QSet<const Tank*> m_destroyedTanks;
 };
 
 #endif // RENDERER_H
