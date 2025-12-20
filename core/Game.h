@@ -56,7 +56,7 @@ private:
     void clearWorld();
     void updateTanks(int deltaMs);
     void spawnPendingBullets();
-    void removeDeadTanks();
+    void cleanupDestroyed(bool removeBullets = true);
     void updateEnemySpawning(int deltaMs);
     bool trySpawnEnemy();
     bool canSpawnEnemyAt(const QPoint& cell) const;

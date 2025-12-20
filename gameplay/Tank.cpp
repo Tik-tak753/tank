@@ -1,5 +1,7 @@
 #include "gameplay/Tank.h"
 
+#include <QDebug>
+
 #include "gameplay/Bullet.h"
 
 namespace {
@@ -37,6 +39,8 @@ void Tank::markDestroyed()
 
     m_destroyed = true;
     m_destructionTimerMs = kDestructionDelayMs;
+    qDebug() << "[Tank] Mark destroyed" << this << "type" << static_cast<int>(m_type)
+             << "cell" << cell();
 }
 
 void Tank::update()
@@ -66,4 +70,3 @@ std::unique_ptr<Bullet> Tank::tryShoot()
     m_fireRequested = false;
     return m_weapon.fire(cell(), m_direction, m_type);
 }
-

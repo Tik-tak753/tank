@@ -1,5 +1,6 @@
 #include "core/Game.h"
 
+#include <QDebug>
 #include <QtGlobal>
 
 #include "gameplay/EnemyTank.h"
@@ -36,12 +37,15 @@ void Game::initialize()
 
     const int totalEnemies = m_rules.enemiesPerWave() * m_rules.totalWaves();
     m_state.reset(m_rules.playerLives(), totalEnemies);
+    qDebug() << "[Game] Initialize session: lives" << m_rules.playerLives()
+             << "enemies" << totalEnemies;
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
 
     LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
     m_map = std::move(level.map);
     m_base = std::make_unique<Base>(level.baseCell);
+    qDebug() << "[Game] Base spawned at" << level.baseCell;
     m_enemySpawnPoints = level.enemySpawns;
     m_maxAliveEnemies = m_rules.enemiesPerWave();
     m_nextSpawnIndex = 0;
@@ -53,6 +57,7 @@ void Game::initialize()
 
     m_player = player.get();
     m_tanks.append(player.release());
+    qDebug() << "[Game] Player spawned at" << m_player->cell();
 
     updateEnemySpawning(0);
 }
@@ -71,14 +76,7 @@ void Game::setInputSystem(InputSystem* input)
 
 void Game::update(int deltaMs)
 {
-    // Прибираємо всі снаряди, що втратили життєздатність у попередніх тиках
-    for (qsizetype i = m_bullets.size(); i > 0; --i) {
-        Bullet* bullet = m_bullets.at(i - 1);
-        if (bullet && !bullet->isAlive()) {
-            delete bullet;
-            m_bullets.removeAt(i - 1);
-        }
-    }
+    cleanupDestroyed();
 
     if (m_state.isBaseDestroyed())
         return;
@@ -97,7 +95,7 @@ void Game::update(int deltaMs)
 
     m_pendingBullets.clear();
 
-    removeDeadTanks();
+    cleanupDestroyed(false);
     updateEnemySpawning(deltaMs);
 }
 
@@ -116,6 +114,7 @@ void Game::clearWorld()
     m_base.reset();
     m_player = nullptr;
     m_enemySpawnPoints.clear();
+    qDebug() << "[Game] World cleared";
 }
 
 void Game::updateTanks(int deltaMs)
@@ -136,12 +135,25 @@ void Game::spawnPendingBullets()
     while (!m_pendingBullets.empty()) {
         std::unique_ptr<Bullet> bullet = std::move(m_pendingBullets.back());
         m_pendingBullets.pop_back();
+        qDebug() << "[Game] Bullet spawned at" << bullet->cell() << "dir" << static_cast<int>(bullet->direction());
         m_bullets.append(bullet.release());
     }
 }
 
-void Game::removeDeadTanks()
+void Game::cleanupDestroyed(bool removeBullets)
 {
+    if (removeBullets) {
+        for (qsizetype i = m_bullets.size(); i > 0; --i) {
+            Bullet* bullet = m_bullets.at(i - 1);
+            if (bullet && bullet->isAlive())
+                continue;
+
+            qDebug() << "[Game] Destroy bullet" << bullet;
+            delete bullet;
+            m_bullets.removeAt(i - 1);
+        }
+    }
+
     bool enemyDestroyed = false;
     for (qsizetype i = m_tanks.size(); i > 0; --i) {
         Tank* tank = m_tanks.at(i - 1);
@@ -163,6 +175,8 @@ void Game::removeDeadTanks()
             enemyDestroyed = true;
         }
 
+        qDebug() << "[Game] Remove tank" << tank << "type" << static_cast<int>(tank->getType())
+                 << "cell" << tank->cell();
         delete tank;
         m_tanks.removeAt(i - 1);
     }
@@ -214,6 +228,7 @@ bool Game::trySpawnEnemy()
         m_state.registerSpawnedEnemy();
         m_tanks.append(enemy.release());
         m_enemies.append(enemyPtr);
+        qDebug() << "[Game] Enemy spawned at" << cell;
         return true;
     }
 

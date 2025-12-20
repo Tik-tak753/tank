@@ -1,6 +1,8 @@
 #include "gameplay/EnemyTank.h"
 
 #include <QRandomGenerator>
+#include <QVector>
+#include <QDebug>
 #include <algorithm>
 
 #include "world/Map.h"
@@ -98,7 +100,10 @@ bool EnemyTank::canMove(Direction direction) const
         return false;
 
     const QPoint nextCell = cell() + directionDelta(direction);
-    return m_map->isInside(nextCell) && m_map->tile(nextCell).type == TileType::Empty;
+    if (!m_map->isInside(nextCell))
+        return false;
+
+    return m_map->isWalkable(nextCell);
 }
 
 void EnemyTank::tryMove()
@@ -106,22 +111,40 @@ void EnemyTank::tryMove()
     if (!m_map)
         return;
 
-    // Randomly change direction to add variability
-    const bool changeDirection = QRandomGenerator::global()->bounded(100) < 25;
-    if (changeDirection) {
-        setDirection(randomDirection(direction()));
+    QVector<Direction> availableDirections;
+    availableDirections.reserve(4);
+    for (Direction dir : {Direction::Up, Direction::Down, Direction::Left, Direction::Right}) {
+        if (canMove(dir))
+            availableDirections.append(dir);
     }
 
-    if (canMove(direction())) {
-        setCell(cell() + directionDelta());
+    if (availableDirections.isEmpty())
         return;
+
+    Direction current = direction();
+    const bool blocked = !canMove(current);
+    if (blocked || QRandomGenerator::global()->bounded(100) < 25) {
+        QVector<Direction> candidates = availableDirections;
+
+        // уникаємо розворотів на 180 градусів, якщо є інші опції
+        const Direction opposite = oppositeDirection();
+        if (candidates.size() > 1)
+            candidates.removeOne(opposite);
+
+        if (!candidates.isEmpty())
+            current = candidates.at(QRandomGenerator::global()->bounded(candidates.size()));
+        else
+            current = opposite;
+        setDirection(current);
+        qDebug() << "[EnemyTank] Direction change" << this << "->" << static_cast<int>(current)
+                 << "cell" << cell();
     }
 
-    // When blocked, pick a new random direction (not the current one) and try to move once
-    const Direction newDirection = randomDirection(direction());
-    setDirection(newDirection);
-    if (canMove(newDirection)) {
-        setCell(cell() + directionDelta());
+    if (canMove(current)) {
+        const QPoint next = cell() + directionDelta(current);
+        setDirection(current);
+        setCell(next);
+        qDebug() << "[EnemyTank] Move to" << next << "dir" << static_cast<int>(current);
     }
 }
 
