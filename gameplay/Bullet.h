@@ -2,6 +2,7 @@
 #define BULLET_H
 
 #include <QPoint>
+#include <QSet>
 #include <QtGlobal>
 
 #include "gameplay/Direction.h"
@@ -27,6 +28,11 @@ public:
     void update(int deltaMs);
     void destroy(bool spawnExplosion = true);
     bool spawnExplosionOnDestroy() const { return m_spawnExplosionOnDestroy; }
+
+#ifdef QT_DEBUG
+public:
+    static QSet<const Bullet*> s_aliveBullets;
+#endif
 
 private:
     QPoint m_cell;

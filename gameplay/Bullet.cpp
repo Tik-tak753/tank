@@ -2,6 +2,10 @@
 
 #include <QDebug>
 
+#ifdef QT_DEBUG
+QSet<const Bullet*> Bullet::s_aliveBullets;
+#endif
+
 namespace {
 constexpr qsizetype kStepIntervalMs = 120;
 
@@ -23,11 +27,17 @@ Bullet::Bullet(const QPoint& cell, Direction dir, const Tank* owner)
       m_direction(dir),
       m_owner(owner)
 {
+#ifdef QT_DEBUG
+    Q_ASSERT(!s_aliveBullets.contains(this));
+    s_aliveBullets.insert(this);
+#endif
 }
 
 Bullet::~Bullet()
 {
 #ifdef QT_DEBUG
+    Q_ASSERT(s_aliveBullets.contains(this));
+    s_aliveBullets.remove(this);
     qDebug() << "Bullet destroyed:" << this;
 #endif
 }

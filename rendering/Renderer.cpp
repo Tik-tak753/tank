@@ -234,6 +234,10 @@ void Renderer::syncBullets(const Game& game)
         if (!bullet || !bullet->isAlive())
             continue;
 
+#ifdef QT_DEBUG
+        Q_ASSERT(Bullet::s_aliveBullets.contains(bullet));
+#endif
+
         const QPoint cell = bullet->cell();
         currentBulletCells.insert(cell);
         currentExplosionFlags.insert(cell, bullet->spawnExplosionOnDestroy());
