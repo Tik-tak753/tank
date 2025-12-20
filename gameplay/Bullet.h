@@ -24,7 +24,8 @@ public:
     const Tank* owner() const { return m_owner; }
 
     void update(int deltaMs);
-    void destroy();
+    void destroy(bool spawnExplosion = true);
+    bool spawnExplosionOnDestroy() const { return m_spawnExplosionOnDestroy; }
 
 private:
     QPoint m_cell;
@@ -32,6 +33,7 @@ private:
     const Tank* m_owner = nullptr;
     qsizetype m_elapsedMs = 0;
     bool m_alive = true;
+    bool m_spawnExplosionOnDestroy = true;
 };
 
 #endif // BULLET_H

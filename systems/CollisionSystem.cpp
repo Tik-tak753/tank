@@ -24,6 +24,7 @@ void CollisionSystem::resolve(
 
         const QPoint cell = bullet->cell();
         bool destroyBullet = false;
+        bool spawnBulletExplosion = true;
 
         // ---- Out of bounds ----
         if (!map.isInside(cell)) {
@@ -80,12 +81,13 @@ void CollisionSystem::resolve(
                     }
 
                     destroyBullet = true;
+                    spawnBulletExplosion = false;
                     break;
                 }
             }
         }
 
         if (destroyBullet)
-            bullet->destroy();
+            bullet->destroy(spawnBulletExplosion);
     }
 }
