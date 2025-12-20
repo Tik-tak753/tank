@@ -43,13 +43,5 @@ void Map::setTile(const QPoint& cell, const Tile& tile)
 bool Map::isWalkable(const QPoint& cell) const
 {
     const Tile target = tile(cell);
-    switch (target.type) {
-    case TileType::Empty:
-        return true;
-    case TileType::Brick:
-    case TileType::Steel:
-    case TileType::Base:
-        return false;
-    }
-    return false;
+    return !(target.blockMask & BlockTank);
 }

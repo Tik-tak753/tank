@@ -12,6 +12,9 @@ int Tile::maxDamage() const
         return std::numeric_limits<int>::max();
     case TileType::Empty:
     case TileType::Base:
+    case TileType::Forest:
+    case TileType::Water:
+    case TileType::Ice:
         return 0;
     }
 
@@ -43,6 +46,7 @@ Tile TileFactory::brick()
 {
     Tile t;
     t.type = TileType::Brick;
+    t.blockMask = BlockTank | BlockBullet;
     t.destructible = true;
     t.walkable = false;
     return t;
@@ -52,6 +56,7 @@ Tile TileFactory::steel()
 {
     Tile t;
     t.type = TileType::Steel;
+    t.blockMask = BlockTank | BlockBullet;
     t.destructible = false;
     t.walkable = false;
     return t;
@@ -61,6 +66,7 @@ Tile TileFactory::empty()
 {
     Tile t;
     t.type = TileType::Empty;
+    t.blockMask = BlockNone;
     t.destructible = false;
     t.walkable = true;
     return t;
@@ -70,7 +76,38 @@ Tile TileFactory::base()
 {
     Tile t;
     t.type = TileType::Base;
+    t.blockMask = BlockTank | BlockBullet;
     t.destructible = true;
     t.walkable = false;
+    return t;
+}
+
+Tile TileFactory::forest()
+{
+    Tile t;
+    t.type = TileType::Forest;
+    t.blockMask = BlockNone;
+    t.destructible = false;
+    t.walkable = true;
+    return t;
+}
+
+Tile TileFactory::water()
+{
+    Tile t;
+    t.type = TileType::Water;
+    t.blockMask = BlockTank | BlockBullet;
+    t.destructible = false;
+    t.walkable = false;
+    return t;
+}
+
+Tile TileFactory::ice()
+{
+    Tile t;
+    t.type = TileType::Ice;
+    t.blockMask = BlockNone;
+    t.destructible = false;
+    t.walkable = true;
     return t;
 }
