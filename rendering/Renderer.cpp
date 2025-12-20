@@ -46,8 +46,7 @@ void Renderer::renderFrame(const Game& game)
         return;
 
     updateBaseBlinking(game);
-    clearMapLayer();     // DEBUG ONLY
-    drawMap(game);       // reflect runtime tile changes
+    initializeMap(game);
 
     syncTanks(game);
     syncBullets(game);
