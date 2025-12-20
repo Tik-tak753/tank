@@ -46,7 +46,6 @@ private:
     void updateExplosions();
     void updateHud(const Game& game);
     void updateBaseBlinking(const Game& game);
-    void clearMapLayer();
     qreal tileSize() const;
 
     QGraphicsScene* m_scene = nullptr;
