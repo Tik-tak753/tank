@@ -35,34 +35,36 @@ void CollisionSystem::resolve(
         } else {
             const Tile target = map.tile(cell);
 
-            switch (target.type) {
-            case TileType::Empty:
-                break;
-
-            case TileType::Brick:
-                map.setTile(cell, TileFactory::empty());
+            if (target.isSteel() || target.type == TileType::Steel) {
+                qDebug() << "[BULLET] Hit STEEL → bullet destroyed, tile intact at"
+                         << QStringLiteral("(%1, %2)").arg(cell.x()).arg(cell.y());
                 destroyBullet = true;
-                break;
+            } else {
+                switch (target.type) {
+                case TileType::Empty:
+                    break;
 
-            case TileType::Steel:
-                qDebug() << "[BULLET] Hit STEEL tile at"
-                         << QStringLiteral("(%1, %2)").arg(cell.x()).arg(cell.y())
-                         << "→ blocked";
-                destroyBullet = true;
-                break;
+                case TileType::Brick:
+                    map.setTile(cell, TileFactory::empty());
+                    destroyBullet = true;
+                    break;
 
-            case TileType::Base:
-                destroyBullet = true;
+                case TileType::Base:
+                    destroyBullet = true;
 
-                if (base && !state.isBaseDestroyed()) {
-                    base->takeDamage();
+                    if (base && !state.isBaseDestroyed()) {
+                        base->takeDamage();
 
-                    if (base->isDestroyed()) {
-                        state.setBaseDestroyed();
-                        map.setTile(cell, TileFactory::empty());
+                        if (base->isDestroyed()) {
+                            state.setBaseDestroyed();
+                            map.setTile(cell, TileFactory::empty());
+                        }
                     }
+                    break;
+
+                case TileType::Steel:
+                    break;
                 }
-                break;
             }
         }
 

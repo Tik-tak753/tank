@@ -19,6 +19,8 @@ struct Tile
     TileType type = TileType::Empty;
     bool destructible = false;
     bool walkable = true;
+
+    bool isSteel() const { return type == TileType::Steel; }
 };
 
 // Утиліти створення стін для зручності
