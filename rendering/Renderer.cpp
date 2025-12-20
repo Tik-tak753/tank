@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <algorithm>
 #include <utility>
+#include <QString>
 
 #include "core/Game.h"
 #include "gameplay/Bullet.h"
@@ -24,6 +25,18 @@
 #include "world/Base.h"
 #include "world/Map.h"
 #include "world/Tile.h"
+
+namespace {
+const QColor kHudLabelColor(210, 210, 210);
+const QColor kHudLivesColor(230, 190, 60);
+const QColor kHudEnemyColor(210, 70, 70);
+const QColor kHudStatusColor(200, 200, 200);
+
+QString toCssColor(const QColor& color)
+{
+    return color.name(QColor::HexRgb);
+}
+} // namespace
 
 Renderer::Renderer(QGraphicsScene* scene)
     : m_scene(scene)
@@ -321,7 +334,7 @@ void Renderer::updateHud(const Game& game)
 
     if (!m_hudItem) {
         m_hudItem = m_scene->addText(QString());
-        m_hudItem->setDefaultTextColor(Qt::white);
+        m_hudItem->setDefaultTextColor(kHudLabelColor);
         QFont font = m_hudItem->font();
         font.setPointSize(16);
         m_hudItem->setFont(font);
@@ -333,13 +346,41 @@ void Renderer::updateHud(const Game& game)
 
     const int lives = game.state().remainingLives();
     const int enemyCount = game.state().aliveEnemies();
+    QString statusText;
+    switch (game.state().sessionState()) {
+    case GameSessionState::Running:
+        break;
+    case GameSessionState::GameOver:
+        statusText = QStringLiteral("GAME OVER");
+        break;
+    case GameSessionState::Victory:
+        statusText = QStringLiteral("STAGE CLEAR");
+        break;
+    }
 
-    const QString text = QStringLiteral("LIVES: %1\nENEMIES: %2")
+    const QString text = QStringLiteral(
+                             "<div style='color:%1;'>"
+                             "<span style='color:%2;'>LIVES:</span> <span style='color:%3;'>%4</span><br/>"
+                             "<span style='color:%2;'>ENEMIES:</span> <span style='color:%5;'>%6</span>%7"
+                             "</div>")
+                             .arg(toCssColor(kHudLabelColor))
+                             .arg(toCssColor(kHudLabelColor))
+                             .arg(toCssColor(kHudLivesColor))
                              .arg(lives)
-                             .arg(enemyCount);
+                             .arg(toCssColor(kHudEnemyColor))
+                             .arg(enemyCount)
+                             .arg(statusText.isEmpty() ? QString() : QStringLiteral("<br/><span style='color:%1;'>%2</span>")
+                                                                                       .arg(toCssColor(kHudStatusColor))
+                                                                                       .arg(statusText));
 
-    if (m_hudItem->toPlainText() != text)
-        m_hudItem->setPlainText(text);
+    if (m_hudItem->toHtml() != text)
+        m_hudItem->setHtml(text);
+
+    if (m_lastHudStatus != statusText) {
+        m_lastHudStatus = statusText;
+        if (!statusText.isEmpty())
+            qDebug() << "[GAME] HUD status updated:" << statusText;
+    }
 }
 
 void Renderer::updateBaseBlinking(const Game& game)

@@ -47,9 +47,11 @@ void Game::initialize()
     m_base = std::make_unique<Base>(level.baseCell);
     qDebug() << "[Game] Base spawned at" << level.baseCell;
     m_enemySpawnPoints = level.enemySpawns;
+    m_playerSpawnCell = level.playerSpawn;
     m_maxAliveEnemies = m_rules.enemiesPerWave();
     m_nextSpawnIndex = 0;
     m_enemySpawnCooldownMs = 0;
+    m_playerRespawnTimerMs = 0;
 
     auto player = std::make_unique<PlayerTank>(level.playerSpawn);
     player->setMap(m_map.get());
@@ -78,12 +80,14 @@ void Game::update(int deltaMs)
 {
     cleanupDestroyed();
 
-    if (m_state.isBaseDestroyed())
+    evaluateSessionState();
+    if (m_state.isGameOver() || m_state.isVictory())
         return;
 
     if (!m_map)
         initialize();
 
+    updatePlayerRespawn(deltaMs);
     updateTanks(deltaMs);
     spawnPendingBullets();
 
@@ -96,6 +100,7 @@ void Game::update(int deltaMs)
     m_pendingBullets.clear();
 
     cleanupDestroyed(false);
+    evaluateSessionState();
     updateEnemySpawning(deltaMs);
 }
 
@@ -113,6 +118,8 @@ void Game::clearWorld()
     m_map.reset();
     m_base.reset();
     m_player = nullptr;
+    m_playerSpawnCell = QPoint();
+    m_playerRespawnTimerMs = 0;
     m_enemySpawnPoints.clear();
     qDebug() << "[Game] World cleared";
 }
@@ -142,6 +149,7 @@ void Game::spawnPendingBullets()
 
 void Game::cleanupDestroyed(bool removeBullets)
 {
+    bool playerDestroyed = false;
     if (removeBullets) {
         for (qsizetype i = m_bullets.size(); i > 0; --i) {
             Bullet* bullet = m_bullets.at(i - 1);
@@ -169,9 +177,11 @@ void Game::cleanupDestroyed(bool removeBullets)
         if (tank == m_player) {
             m_player = nullptr;
             m_state.registerPlayerLostLife();
+            playerDestroyed = true;
         } else if (dynamic_cast<EnemyTank*>(tank)) {
             m_enemies.removeOne(static_cast<EnemyTank*>(tank));
             m_state.registerEnemyDestroyed();
+            qDebug() << "[GAME] Enemy destroyed (" << m_state.destroyedEnemies() << "/" << m_state.totalEnemies() << ")";
             enemyDestroyed = true;
         }
 
@@ -183,10 +193,18 @@ void Game::cleanupDestroyed(bool removeBullets)
 
     if (enemyDestroyed && m_state.enemiesToSpawn() > 0 && m_enemySpawnCooldownMs == 0)
         m_enemySpawnCooldownMs = m_enemyRespawnDelayMs;
+
+    if (playerDestroyed && m_state.remainingLives() > 0) {
+        m_playerRespawnTimerMs = m_playerRespawnDelayMs;
+        qDebug() << "[GAME] Player destroyed, respawn in" << m_playerRespawnDelayMs << "ms";
+    }
 }
 
 void Game::updateEnemySpawning(int deltaMs)
 {
+    if (m_state.sessionState() != GameSessionState::Running)
+        return;
+
     if (!m_map)
         return;
 
@@ -253,4 +271,96 @@ bool Game::canSpawnEnemyAt(const QPoint& cell) const
     }
 
     return true;
+}
+
+bool Game::canSpawnPlayerAt(const QPoint& cell) const
+{
+    if (!m_map || !m_map->isInside(cell))
+        return false;
+
+    if (!m_map->isWalkable(cell))
+        return false;
+
+    for (Tank* tank : m_tanks) {
+        if (!tank)
+            continue;
+
+        if (!tank->isDestructionFinished() && tank->cell() == cell)
+            return false;
+    }
+
+    return true;
+}
+
+void Game::updatePlayerRespawn(int deltaMs)
+{
+    if (m_player || m_state.remainingLives() <= 0)
+        return;
+
+    if (m_playerRespawnTimerMs > 0) {
+        m_playerRespawnTimerMs = qMax(0, m_playerRespawnTimerMs - deltaMs);
+        if (m_playerRespawnTimerMs > 0)
+            return;
+    }
+
+    trySpawnPlayer();
+}
+
+void Game::trySpawnPlayer()
+{
+    if (!m_map)
+        return;
+
+    if (!canSpawnPlayerAt(m_playerSpawnCell)) {
+        qDebug() << "[GAME] Player respawn blocked at" << m_playerSpawnCell;
+        return;
+    }
+
+    auto player = std::make_unique<PlayerTank>(m_playerSpawnCell);
+    player->setMap(m_map.get());
+    player->setInput(m_inputSystem);
+
+    m_player = player.get();
+    m_tanks.append(player.release());
+    qDebug() << "[GAME] Player respawned at" << m_playerSpawnCell;
+}
+
+void Game::evaluateSessionState()
+{
+    if (m_state.sessionState() != GameSessionState::Running)
+        return;
+
+    if (m_state.isBaseDestroyed()) {
+        setSessionState(GameSessionState::GameOver);
+        return;
+    }
+
+    if (!m_player && m_state.remainingLives() <= 0) {
+        qDebug() << "[GAME] Player destroyed → GAME OVER";
+        setSessionState(GameSessionState::GameOver);
+        return;
+    }
+
+    if (m_state.destroyedEnemies() >= m_state.totalEnemies() && m_state.aliveEnemies() == 0) {
+        setSessionState(GameSessionState::Victory);
+    }
+}
+
+void Game::setSessionState(GameSessionState state)
+{
+    if (m_state.sessionState() == state)
+        return;
+
+    m_state.setSessionState(state);
+
+    switch (state) {
+    case GameSessionState::Running:
+        break;
+    case GameSessionState::GameOver:
+        qDebug() << "[GAME] State → GAME_OVER";
+        break;
+    case GameSessionState::Victory:
+        qDebug() << "[GAME] State → VICTORY";
+        break;
+    }
 }

@@ -57,12 +57,13 @@ MainWindow::MainWindow(QWidget *parent)
         if (m_renderer)
             m_renderer->renderFrame(*m_game);
 
-        if (m_game && m_game->state().isBaseDestroyed() && !m_gameOverItem) {
-            m_gameOverItem = new QGraphicsTextItem(QStringLiteral("GAME OVER"));
+        if (m_game && !m_gameOverItem && (m_game->state().isGameOver() || m_game->state().isVictory())) {
+            const bool victory = m_game->state().isVictory();
+            m_gameOverItem = new QGraphicsTextItem(victory ? QStringLiteral("STAGE CLEAR") : QStringLiteral("GAME OVER"));
             QFont font = m_gameOverItem->font();
             font.setPointSize(40);
             m_gameOverItem->setFont(font);
-            m_gameOverItem->setDefaultTextColor(Qt::red);
+            m_gameOverItem->setDefaultTextColor(victory ? QColor(240, 240, 240) : Qt::red);
             m_gameOverItem->setZValue(1000);
             m_scene->addItem(m_gameOverItem);
 
@@ -90,7 +91,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         return;
     }
 
-    if (event->key() == Qt::Key_R && m_game && m_game->state().isBaseDestroyed()) {
+    if (event->key() == Qt::Key_R && m_game && (m_game->state().isGameOver() || m_game->state().isVictory())) {
         m_game->restart();
 
         if (m_gameOverItem) {
