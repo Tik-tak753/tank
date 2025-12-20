@@ -10,6 +10,7 @@
 #include "world/Base.h"
 #include "world/Map.h"
 #include "world/Tile.h"
+#include "enums/enums.h"
 
 void CollisionSystem::resolve(
     Map& map,
@@ -70,16 +71,16 @@ void CollisionSystem::resolve(
                 if (tank->isDestroyed())
                     continue;
 
-                const Tank* owner = bullet->owner();
+                auto owner = bullet->type();
 
-                if (tank == owner)
+                if (tank->getType() == owner)
                     continue;
 
                 if (owner) {
-                    const bool ownerIsPlayer = dynamic_cast<const PlayerTank*>(owner);
-                    const bool ownerIsEnemy = dynamic_cast<const EnemyTank*>(owner);
-                    const bool targetIsPlayer = dynamic_cast<PlayerTank*>(tank);
-                    const bool targetIsEnemy = dynamic_cast<EnemyTank*>(tank);
+                    const bool ownerIsPlayer = owner == TankType::Player;
+                    const bool ownerIsEnemy = owner == TankType::Enemy;
+                    const bool targetIsPlayer = tank->getType() == TankType::Player;
+                    const bool targetIsEnemy = tank->getType() == TankType::Enemy;
 
                     if ((ownerIsPlayer && targetIsPlayer) || (ownerIsEnemy && targetIsEnemy))
                         continue;

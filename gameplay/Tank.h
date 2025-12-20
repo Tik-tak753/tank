@@ -9,6 +9,8 @@
 #include "gameplay/WeaponSystem.h"
 #include "gameplay/HealthSystem.h"
 
+#include "enums/enums.h"
+
 class Bullet;
 
 /*
@@ -17,9 +19,17 @@ class Bullet;
  */
 class Tank : public GameObject
 {
+private:
+    TankType m_type;
+
 public:
+
     explicit Tank(const QPoint& cell);
     virtual ~Tank() = default;
+
+    TankType getType();
+
+    void setType(TankType type);
 
     bool isDestroyed() const { return m_destroyed; }
     bool isDestructionFinished() const { return m_destroyed && m_destructionTimerMs <= 0; }

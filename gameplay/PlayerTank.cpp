@@ -22,6 +22,7 @@ PlayerTank::PlayerTank(const QPoint& cell)
 {
     m_health.setLives(3);
     m_speed = 1.5f;
+    setType(TankType::Player);
 }
 
 void PlayerTank::setInput(InputSystem* input)

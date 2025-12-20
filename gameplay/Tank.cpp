@@ -15,6 +15,16 @@ Tank::Tank(const QPoint& cell)
     m_weapon.setReloadTime(400);
 }
 
+TankType Tank::getType()
+{
+    return m_type;
+}
+
+void Tank::setType(TankType type)
+{
+    m_type = type;
+}
+
 void Tank::setSpeed(float speed)
 {
     m_speed = speed;
@@ -54,5 +64,6 @@ std::unique_ptr<Bullet> Tank::tryShoot()
         return nullptr;
 
     m_fireRequested = false;
-    return m_weapon.fire(cell(), m_direction, this);
+    return m_weapon.fire(cell(), m_direction, m_type);
 }
+

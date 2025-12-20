@@ -55,6 +55,7 @@ HEADERS += \
     core/GameLoop.h \
     core/GameRules.h \
     core/GameState.h \
+    enums/enums.h \
     gameplay/Bullet.h \
     gameplay/Direction.h \
     gameplay/GameObject.h \
@@ -92,3 +93,11 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+# Добавление CRT Debug для поиска утечек памяти (только для MSVC)
+win32-msvc* {
+    CONFIG(debug, debug|release) {
+        DEFINES += _CRTDBG_MAP_ALLOC
+        LIBS += -lOle32
+    }
+}
