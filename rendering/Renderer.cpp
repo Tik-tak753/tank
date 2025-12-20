@@ -100,6 +100,9 @@ void Renderer::drawMap(const Game& game)
             const QColor color = tileColor(cell, tile);
             const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
+#ifdef QT_DEBUG
+            Q_ASSERT(!m_deletedItemsDebug.contains(item));
+#endif
             item->setZValue(0);
             m_tileItems.insert(cell, item);
         }
@@ -111,6 +114,13 @@ void Renderer::syncMapTiles(const Game& game)
     const Map* map = game.map();
     if (!map)
         return;
+#ifdef QT_DEBUG
+    auto debugMarkDeleted = [&](const QGraphicsItem* it) {
+        Q_ASSERT(it);
+        Q_ASSERT(!m_deletedItemsDebug.contains(it));
+        m_deletedItemsDebug.insert(it);
+    };
+#endif
 
     const Base* base = game.base();
     const QPoint baseCell = base ? base->cell() : QPoint(-1, -1);
@@ -141,6 +151,9 @@ void Renderer::syncMapTiles(const Game& game)
 
         if (tile.type == TileType::Empty) {
             m_scene->removeItem(item);
+#ifdef QT_DEBUG
+            debugMarkDeleted(item);
+#endif
             delete item;
             it = m_tileItems.erase(it);
             continue;
@@ -166,6 +179,13 @@ void Renderer::syncTanks(const Game& game)
         if (tank)
             seen.insert(tank);
     }
+#ifdef QT_DEBUG
+    auto debugMarkDeleted = [&](const QGraphicsItem* it) {
+        Q_ASSERT(it);
+        Q_ASSERT(!m_deletedItemsDebug.contains(it));
+        m_deletedItemsDebug.insert(it);
+    };
+#endif
 
     auto barrelRectForDirection = [&](Direction dir) {
         switch (dir) {
@@ -206,11 +226,17 @@ void Renderer::syncTanks(const Game& game)
 
         if (item) {
             m_scene->removeItem(item);
+#ifdef QT_DEBUG
+            debugMarkDeleted(item);
+#endif
             delete item;
         }
 
         if (directionItem) {
             m_scene->removeItem(directionItem);
+#ifdef QT_DEBUG
+            debugMarkDeleted(directionItem);
+#endif
             delete directionItem;
         }
     };
@@ -225,6 +251,9 @@ void Renderer::syncTanks(const Game& game)
         QGraphicsRectItem* item = m_tankItems.value(tank, nullptr);
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
+#ifdef QT_DEBUG
+            Q_ASSERT(!m_deletedItemsDebug.contains(item));
+#endif
             item->setZValue(10);
             m_tankItems.insert(tank, item);
         }
@@ -232,6 +261,9 @@ void Renderer::syncTanks(const Game& game)
         QGraphicsRectItem* directionItem = m_tankDirectionItems.value(tank, nullptr);
         if (!directionItem) {
             directionItem = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(barrelThickness, barrelLength)), QPen(Qt::NoPen), QBrush(Qt::black));
+#ifdef QT_DEBUG
+            Q_ASSERT(!m_deletedItemsDebug.contains(directionItem));
+#endif
             directionItem->setZValue(11);
             m_tankDirectionItems.insert(tank, directionItem);
         }
@@ -270,6 +302,13 @@ void Renderer::syncBullets(const Game& game)
     const Map* map = game.map();
     const qreal size = tileSize();
     const qreal bulletSize = size / 2.0;
+#ifdef QT_DEBUG
+    auto debugMarkDeleted = [&](const QGraphicsItem* it) {
+        Q_ASSERT(it);
+        Q_ASSERT(!m_deletedItemsDebug.contains(it));
+        m_deletedItemsDebug.insert(it);
+    };
+#endif
     QSet<QPoint> currentBulletCells;
     QHash<QPoint, bool> currentExplosionFlags;
     QHash<QPoint, QGraphicsRectItem*> newBulletItems;
@@ -299,6 +338,9 @@ void Renderer::syncBullets(const Game& game)
 
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+#ifdef QT_DEBUG
+            Q_ASSERT(!m_deletedItemsDebug.contains(item));
+#endif
             item->setZValue(20);
         }
 
@@ -317,6 +359,9 @@ void Renderer::syncBullets(const Game& game)
 
     for (QGraphicsRectItem* item : std::as_const(m_bulletItems)) {
         m_scene->removeItem(item);
+#ifdef QT_DEBUG
+        debugMarkDeleted(item);
+#endif
         delete item;
     }
 
@@ -343,6 +388,9 @@ void Renderer::updateHud(const Game& game)
         if (!item) {
             item = m_scene->addText(QString());
             item->setDefaultTextColor(color);
+#ifdef QT_DEBUG
+            Q_ASSERT(!m_deletedItemsDebug.contains(item));
+#endif
             QFont font = item->font();
             font.setPointSize(16);
             item->setFont(font);
@@ -424,8 +472,18 @@ void Renderer::initializeMap(const Game& game)
 
 void Renderer::clearMapLayer()
 {
+#ifdef QT_DEBUG
+    auto debugMarkDeleted = [&](const QGraphicsItem* it) {
+        Q_ASSERT(it);
+        Q_ASSERT(!m_deletedItemsDebug.contains(it));
+        m_deletedItemsDebug.insert(it);
+    };
+#endif
     for (QGraphicsRectItem* item : std::as_const(m_tileItems)) {
         m_scene->removeItem(item);
+#ifdef QT_DEBUG
+        debugMarkDeleted(item);
+#endif
         delete item;
     }
     m_tileItems.clear();
@@ -438,6 +496,13 @@ qreal Renderer::tileSize() const
 
 void Renderer::updateExplosions()
 {
+#ifdef QT_DEBUG
+    auto debugMarkDeleted = [&](const QGraphicsItem* it) {
+        Q_ASSERT(it);
+        Q_ASSERT(!m_deletedItemsDebug.contains(it));
+        m_deletedItemsDebug.insert(it);
+    };
+#endif
     for (Explosion& explosion : m_explosions)
         --explosion.ttlFrames;
 
@@ -446,6 +511,9 @@ void Renderer::updateExplosions()
 
     for (QGraphicsRectItem* item : m_explosionItems) {
         m_scene->removeItem(item);
+#ifdef QT_DEBUG
+        debugMarkDeleted(item);
+#endif
         delete item;
     }
     m_explosionItems.clear();
@@ -458,6 +526,9 @@ void Renderer::updateExplosions()
     for (const Explosion& explosion : std::as_const(m_explosions)) {
         const QPointF pos = QPointF(explosion.cell) * size + offset;
         QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(explosionSize, explosionSize)), QPen(Qt::NoPen), brush);
+#ifdef QT_DEBUG
+        Q_ASSERT(!m_deletedItemsDebug.contains(item));
+#endif
         item->setZValue(25);
         m_explosionItems.append(item);
     }

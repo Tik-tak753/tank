@@ -61,6 +61,9 @@ private:
     QList<QGraphicsRectItem*> m_explosionItems;
     QGraphicsTextItem* m_hudLivesItem = nullptr;
     QGraphicsTextItem* m_hudEnemiesItem = nullptr;
+#ifdef QT_DEBUG
+    QSet<const QGraphicsItem*> m_deletedItemsDebug;
+#endif
 
     bool m_baseBlinking = false;
     int m_baseBlinkCounter = 0;
