@@ -64,6 +64,8 @@ void PlayerTank::updateWithDelta(int deltaMs)
     while (m_moveAccumulator >= 1.0f) {
         const QPoint nextCell = cell() + step;
         if (m_map && !m_map->isWalkable(nextCell)) {
+            // Прохідність вирішують самі тайли через маску BlockTank:
+            // танк не знає деталей карти і рухається, доки дані дозволяють.
             m_moveAccumulator = 0.0f; // блокуємо накопичення в глухих кутах
             break;
         }

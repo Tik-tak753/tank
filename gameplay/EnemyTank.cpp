@@ -2,7 +2,6 @@
 
 #include <QRandomGenerator>
 #include <QVector>
-#include <QDebug>
 #include <algorithm>
 
 #include "world/Map.h"
@@ -136,15 +135,12 @@ void EnemyTank::tryMove()
         else
             current = opposite;
         setDirection(current);
-        qDebug() << "[EnemyTank] Direction change" << this << "->" << static_cast<int>(current)
-                 << "cell" << cell();
     }
 
     if (canMove(current)) {
         const QPoint next = cell() + directionDelta(current);
         setDirection(current);
         setCell(next);
-        qDebug() << "[EnemyTank] Move to" << next << "dir" << static_cast<int>(current);
     }
 }
 

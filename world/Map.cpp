@@ -42,6 +42,8 @@ void Map::setTile(const QPoint& cell, const Tile& tile)
 
 bool Map::isWalkable(const QPoint& cell) const
 {
+    // Рух танків обмежується лише маскою BlockTank.
+    // Таким чином дані карти вирішують, які клітинки є стінами, без гілок у коді руху.
     const Tile target = tile(cell);
     return !(target.blockMask & BlockTank);
 }

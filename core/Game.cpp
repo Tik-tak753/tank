@@ -1,6 +1,5 @@
 #include "core/Game.h"
 
-#include <QDebug>
 #include <QtGlobal>
 
 #include "gameplay/EnemyTank.h"
@@ -37,15 +36,12 @@ void Game::initialize()
 
     const int totalEnemies = m_rules.enemiesPerWave() * m_rules.totalWaves();
     m_state.reset(m_rules.playerLives(), totalEnemies);
-    qDebug() << "[Game] Initialize session: lives" << m_rules.playerLives()
-             << "enemies" << totalEnemies;
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
 
     LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
     m_map = std::move(level.map);
     m_base = std::make_unique<Base>(level.baseCell);
-    qDebug() << "[Game] Base spawned at" << level.baseCell;
     m_enemySpawnPoints = level.enemySpawns;
     m_playerSpawnCell = level.playerSpawn;
     m_maxAliveEnemies = m_rules.enemiesPerWave();
@@ -59,7 +55,6 @@ void Game::initialize()
 
     m_player = player.get();
     m_tanks.append(player.release());
-    qDebug() << "[Game] Player spawned at" << m_player->cell();
 
     updateEnemySpawning(0);
 }
@@ -121,7 +116,6 @@ void Game::clearWorld()
     m_playerSpawnCell = QPoint();
     m_playerRespawnTimerMs = 0;
     m_enemySpawnPoints.clear();
-    qDebug() << "[Game] World cleared";
 }
 
 void Game::updateTanks(int deltaMs)
@@ -142,7 +136,6 @@ void Game::spawnPendingBullets()
     while (!m_pendingBullets.empty()) {
         std::unique_ptr<Bullet> bullet = std::move(m_pendingBullets.back());
         m_pendingBullets.pop_back();
-        qDebug() << "[Game] Bullet spawned at" << bullet->cell() << "dir" << static_cast<int>(bullet->direction());
         m_bullets.append(bullet.release());
     }
 }
@@ -156,7 +149,6 @@ void Game::cleanupDestroyed(bool removeBullets)
             if (bullet && bullet->isAlive())
                 continue;
 
-            qDebug() << "[Game] Destroy bullet" << bullet;
             delete bullet;
             m_bullets.removeAt(i - 1);
         }
@@ -181,12 +173,9 @@ void Game::cleanupDestroyed(bool removeBullets)
         } else if (dynamic_cast<EnemyTank*>(tank)) {
             m_enemies.removeOne(static_cast<EnemyTank*>(tank));
             m_state.registerEnemyDestroyed();
-            qDebug() << "[GAME] Enemy destroyed (" << m_state.destroyedEnemies() << "/" << m_state.totalEnemies() << ")";
             enemyDestroyed = true;
         }
 
-        qDebug() << "[Game] Remove tank" << tank << "type" << static_cast<int>(tank->getType())
-                 << "cell" << tank->cell();
         delete tank;
         m_tanks.removeAt(i - 1);
     }
@@ -196,7 +185,6 @@ void Game::cleanupDestroyed(bool removeBullets)
 
     if (playerDestroyed && m_state.remainingLives() > 0) {
         m_playerRespawnTimerMs = m_playerRespawnDelayMs;
-        qDebug() << "[GAME] Player destroyed, respawn in" << m_playerRespawnDelayMs << "ms";
     }
 }
 
@@ -246,7 +234,6 @@ bool Game::trySpawnEnemy()
         m_state.registerSpawnedEnemy();
         m_tanks.append(enemy.release());
         m_enemies.append(enemyPtr);
-        qDebug() << "[Game] Enemy spawned at" << cell;
         return true;
     }
 
@@ -312,7 +299,6 @@ void Game::trySpawnPlayer()
         return;
 
     if (!canSpawnPlayerAt(m_playerSpawnCell)) {
-        qDebug() << "[GAME] Player respawn blocked at" << m_playerSpawnCell;
         return;
     }
 
@@ -322,7 +308,6 @@ void Game::trySpawnPlayer()
 
     m_player = player.get();
     m_tanks.append(player.release());
-    qDebug() << "[GAME] Player respawned at" << m_playerSpawnCell;
 }
 
 void Game::evaluateSessionState()
@@ -336,7 +321,6 @@ void Game::evaluateSessionState()
     }
 
     if (!m_player && m_state.remainingLives() <= 0) {
-        qDebug() << "[GAME] Player destroyed → GAME OVER";
         setSessionState(GameSessionState::GameOver);
         return;
     }
@@ -357,10 +341,8 @@ void Game::setSessionState(GameSessionState state)
     case GameSessionState::Running:
         break;
     case GameSessionState::GameOver:
-        qDebug() << "[GAME] State → GAME_OVER";
         break;
     case GameSessionState::Victory:
-        qDebug() << "[GAME] State → VICTORY";
         break;
     }
 }
