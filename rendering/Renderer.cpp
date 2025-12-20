@@ -232,7 +232,10 @@ void Renderer::syncBullets(const Game& game)
     const Map* map = game.map();
     const qreal size = tileSize();
     const qreal bulletSize = size / 2.0;
-    QSet<const Bullet*> currentBullets;
+    QSet<QPoint> currentBulletCells;
+    QHash<QPoint, bool> currentExplosionFlags;
+    QHash<QPoint, QGraphicsRectItem*> newBulletItems;
+    QSet<QPoint> reusedPreviousCells;
 
     const QPointF bulletOffset((size - bulletSize) / 2.0, (size - bulletSize) / 2.0);
 
@@ -240,56 +243,44 @@ void Renderer::syncBullets(const Game& game)
         if (!bullet || !bullet->isAlive())
             continue;
 
-#ifdef QT_DEBUG
-        Q_ASSERT(!m_deletedBulletsDebug.contains(bullet));
-#endif
-        currentBullets.insert(bullet);
-        QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
+        const QPoint cell = bullet->cell();
+        currentBulletCells.insert(cell);
+        currentExplosionFlags.insert(cell, bullet->spawnExplosionOnDestroy());
+
+        QGraphicsRectItem* item = m_bulletItems.take(cell);
+        if (!item) {
+            const QPoint previousCell = cell - bullet->directionDelta();
+            item = m_bulletItems.take(previousCell);
+            if (item)
+                reusedPreviousCells.insert(previousCell);
+        }
+
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
             item->setZValue(20);
-            m_bulletItems.insert(bullet, item);
         }
 
-        const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
+        const QPointF pos = QPointF(cell) * size + bulletOffset;
         item->setPos(pos);
-        m_lastBulletCells.insert(bullet, bullet->cell());
+        newBulletItems.insert(cell, item);
     }
 
-    for (const Bullet* bullet : m_previousBullets) {
-        if (!currentBullets.contains(bullet)) {
-            const QPoint cell = m_lastBulletCells.value(bullet, QPoint(-1, -1));
-            const bool shouldExplode = !bullet || bullet->spawnExplosionOnDestroy();
+    for (const QPoint& cell : m_previousBulletCells) {
+        if (!currentBulletCells.contains(cell) && !reusedPreviousCells.contains(cell)) {
+            const bool shouldExplode = m_previousBulletExplosionFlags.value(cell, true);
             if (map && map->isInside(cell) && shouldExplode)
                 m_explosions.append(Explosion{cell, 12});
-            m_lastBulletCells.remove(bullet);
-#ifdef QT_DEBUG
-            m_deletedBulletsDebug.insert(bullet);
-#endif
         }
     }
 
-    auto it = m_bulletItems.begin();
-    while (it != m_bulletItems.end()) {
-        if (!currentBullets.contains(it.key())) {
-            QGraphicsItem* item = it.value();
-            m_scene->removeItem(item);
-            delete item;
-            it = m_bulletItems.erase(it);
-        } else {
-            ++it;
-        }
+    for (QGraphicsRectItem* item : std::as_const(m_bulletItems)) {
+        m_scene->removeItem(item);
+        delete item;
     }
 
-    auto cellIt = m_lastBulletCells.begin();
-    while (cellIt != m_lastBulletCells.end()) {
-        if (!currentBullets.contains(cellIt.key()))
-            cellIt = m_lastBulletCells.erase(cellIt);
-        else
-            ++cellIt;
-    }
-
-    m_previousBullets = currentBullets;
+    m_bulletItems = newBulletItems;
+    m_previousBulletCells = currentBulletCells;
+    m_previousBulletExplosionFlags = currentExplosionFlags;
 }
 
 void Renderer::updateHud(const Game& game)
