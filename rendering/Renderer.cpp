@@ -281,6 +281,15 @@ void Renderer::updateHud(const Game& game)
     if (!m_scene)
         return;
 
+    const Map* map = game.map();
+    if (!map)
+        return;
+
+    const qreal size = tileSize();
+    const qreal hudMargin = size * 0.5;
+    const qreal mapWidthInPixels = static_cast<qreal>(map->size().width()) * size;
+    const QPointF hudPosition(mapWidthInPixels + hudMargin, hudMargin);
+
     if (!m_hudItem) {
         m_hudItem = m_scene->addText(QString());
         m_hudItem->setDefaultTextColor(Qt::white);
@@ -288,8 +297,10 @@ void Renderer::updateHud(const Game& game)
         font.setPointSize(16);
         m_hudItem->setFont(font);
         m_hudItem->setZValue(100);
-        m_hudItem->setPos(10, 10);
     }
+
+    if (m_hudItem->pos() != hudPosition)
+        m_hudItem->setPos(hudPosition);
 
     const int lives = game.state().remainingLives();
     const int enemyCount = game.state().aliveEnemies();
