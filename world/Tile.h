@@ -24,6 +24,16 @@ enum CollisionMask : std::uint8_t {
     BlockBullet = 1 << 1
 };
 
+inline constexpr CollisionMask operator|(CollisionMask lhs, CollisionMask rhs)
+{
+    return static_cast<CollisionMask>(static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs));
+}
+
+inline constexpr CollisionMask operator&(CollisionMask lhs, CollisionMask rhs)
+{
+    return static_cast<CollisionMask>(static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs));
+}
+
 class Tile
 {
 public:
