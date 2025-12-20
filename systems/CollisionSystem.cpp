@@ -70,14 +70,14 @@ void CollisionSystem::resolve(
                 if (tank->isDestroyed())
                     continue;
 
-                Tank* owner = bullet->owner();
+                const Tank* owner = bullet->owner();
 
                 if (tank == owner)
                     continue;
 
                 if (owner) {
-                    const bool ownerIsPlayer = dynamic_cast<PlayerTank*>(owner);
-                    const bool ownerIsEnemy = dynamic_cast<EnemyTank*>(owner);
+                    const bool ownerIsPlayer = dynamic_cast<const PlayerTank*>(owner);
+                    const bool ownerIsEnemy = dynamic_cast<const EnemyTank*>(owner);
                     const bool targetIsPlayer = dynamic_cast<PlayerTank*>(tank);
                     const bool targetIsEnemy = dynamic_cast<EnemyTank*>(tank);
 
