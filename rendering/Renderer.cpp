@@ -165,6 +165,32 @@ void Renderer::syncMapTiles(const Game& game)
 
         ++it;
     }
+
+    const QSize mapSize = map->size();
+    const qsizetype height = static_cast<qsizetype>(mapSize.height());
+    const qsizetype width = static_cast<qsizetype>(mapSize.width());
+    const qreal size = tileSize();
+
+    for (qsizetype y = 0; y < height; ++y) {
+        for (qsizetype x = 0; x < width; ++x) {
+            const QPoint cell(static_cast<int>(x), static_cast<int>(y));
+            if (m_tileItems.contains(cell))
+                continue;
+
+            const Tile tile = map->tile(cell);
+            if (tile.type == TileType::Empty)
+                continue;
+
+            const QColor color = tileColor(cell, tile);
+            const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
+            QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
+#ifdef QT_DEBUG
+            Q_ASSERT(!m_deletedItemsDebug.contains(item));
+#endif
+            item->setZValue(0);
+            m_tileItems.insert(cell, item);
+        }
+    }
 }
 
 void Renderer::syncTanks(const Game& game)
