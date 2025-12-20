@@ -312,7 +312,6 @@ void Renderer::syncBullets(const Game& game)
     QSet<QPoint> currentBulletCells;
     QHash<QPoint, bool> currentExplosionFlags;
     QHash<QPoint, QGraphicsRectItem*> newBulletItems;
-    QSet<QPoint> reusedPreviousCells;
 
     const QPointF bulletOffset((size - bulletSize) / 2.0, (size - bulletSize) / 2.0);
 
@@ -328,13 +327,10 @@ void Renderer::syncBullets(const Game& game)
         currentBulletCells.insert(cell);
         currentExplosionFlags.insert(cell, bullet->spawnExplosionOnDestroy());
 
+    }
+
+    for (const QPoint& cell : std::as_const(currentBulletCells)) {
         QGraphicsRectItem* item = m_bulletItems.take(cell);
-        if (!item) {
-            const QPoint previousCell = cell - bullet->directionDelta();
-            item = m_bulletItems.take(previousCell);
-            if (item)
-                reusedPreviousCells.insert(previousCell);
-        }
 
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
@@ -350,7 +346,7 @@ void Renderer::syncBullets(const Game& game)
     }
 
     for (const QPoint& cell : m_previousBulletCells) {
-        if (!currentBulletCells.contains(cell) && !reusedPreviousCells.contains(cell)) {
+        if (!currentBulletCells.contains(cell)) {
             const bool shouldExplode = m_previousBulletExplosionFlags.value(cell, true);
             if (map && map->isInside(cell) && shouldExplode)
                 m_explosions.append(Explosion{cell, 12});
