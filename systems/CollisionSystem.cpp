@@ -88,12 +88,20 @@ bool CollisionSystem::handleBulletMapCollision(
         return true;
     }
 
-    Tile tile = map.tile(cell);
+    const Tile tile = map.tile(cell);
 
     // Маска BlockBullet визначає, чи взагалі куля повинна зупинятися на тайлі.
     // Це дозволяє описувати винятки (наприклад, ліс не блокує кулі) на рівні даних.
     if (!(tile.blockMask & BlockBullet))
         return false;
+
+    if (tile.destructible) {
+        Tile& tileRef = map.tileRef(cell);
+        tileRef.takeDamage(1);
+        if (tileRef.isDestroyed()) {
+            map.setTile(cell, TileFactory::empty());
+        }
+    }
 
     if (base && cell == base->cell()) {
         // База поводиться як звичайний тайл: CollisionSystem лише делегує шкоду власнику.

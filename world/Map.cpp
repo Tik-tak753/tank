@@ -30,6 +30,18 @@ Tile Map::tile(const QPoint& cell) const
     return m_tiles.at(y).at(x);
 }
 
+Tile& Map::tileRef(const QPoint& cell)
+{
+    if (!isInside(cell)) {
+        static Tile outOfBounds = TileFactory::steel();
+        return outOfBounds;
+    }
+
+    const qsizetype x = static_cast<qsizetype>(cell.x());
+    const qsizetype y = static_cast<qsizetype>(cell.y());
+    return m_tiles[y][x];
+}
+
 void Map::setTile(const QPoint& cell, const Tile& tile)
 {
     if (!isInside(cell))

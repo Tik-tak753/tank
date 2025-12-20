@@ -21,6 +21,7 @@ public:
     QSize size() const { return m_size; }
     bool isInside(const QPoint& cell) const;
     Tile tile(const QPoint& cell) const;
+    Tile& tileRef(const QPoint& cell);
     void setTile(const QPoint& cell, const Tile& tile);
     bool isWalkable(const QPoint& cell) const;
 
