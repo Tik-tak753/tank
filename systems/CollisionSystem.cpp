@@ -1,7 +1,5 @@
 #include "systems/CollisionSystem.h"
 
-#include <QtGlobal>
-
 #include "core/GameState.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/EnemyTank.h"
@@ -89,46 +87,17 @@ bool CollisionSystem::handleBulletMapCollision(
 
     Tile tile = map.tile(cell);
 
-    switch (tile.type) {
-    case TileType::Empty:
+    if (!(tile.blockMask & BlockBullet))
         return false;
 
-    case TileType::Brick: {
-        tile.takeDamage(1);
-        if (tile.isDestroyed()) {
+    if (base && cell == base->cell()) {
+        base->takeDamage();
+
+        if (base->isDestroyed() && !state.isBaseDestroyed()) {
+            state.setBaseDestroyed();
             map.setTile(cell, TileFactory::empty());
-        } else {
-            map.setTile(cell, tile);
         }
-        return true;
     }
 
-    case TileType::Steel: {
-        // Сталеві плитки не руйнуються базовими снарядами.
-        if (tile.destructible) {
-            tile.takeDamage(1);
-            if (tile.isDestroyed())
-                map.setTile(cell, TileFactory::empty());
-            else
-                map.setTile(cell, tile);
-        }
-
-        return true;
-    }
-
-    case TileType::Base: {
-        if (base) {
-            base->takeDamage();
-
-            if (base->isDestroyed() && !state.isBaseDestroyed()) {
-                state.setBaseDestroyed();
-                map.setTile(cell, TileFactory::empty());
-            }
-        }
-
-        return true;
-    }
-    }
-
-    Q_UNREACHABLE();
+    return true;
 }
