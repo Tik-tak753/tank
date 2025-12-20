@@ -47,6 +47,7 @@ void Renderer::renderFrame(const Game& game)
 
     updateBaseBlinking(game);
     initializeMap(game);
+    syncMapTiles(game);
 
     syncTanks(game);
     syncBullets(game);
@@ -69,6 +70,23 @@ void Renderer::drawMap(const Game& game)
     const qsizetype height = static_cast<qsizetype>(mapSize.height());
     const qsizetype width = static_cast<qsizetype>(mapSize.width());
 
+    auto tileColor = [&](const QPoint& cell, const Tile& tile) {
+        QColor color = Qt::gray;
+        if (tile.type == TileType::Brick)
+            color = QColor(193, 68, 14);
+        if (tile.type == TileType::Steel)
+            color = QColor(160, 160, 160);
+        if (tile.type == TileType::Base) {
+            const bool isBaseCell = (base && cell == baseCell);
+            if (isBaseCell && baseDestroyed) {
+                color = QColor(60, 60, 60);
+            } else {
+                color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
+            }
+        }
+        return color;
+    };
+
     for (qsizetype y = 0; y < height; ++y) {
         for (qsizetype x = 0; x < width; ++x) {
             const QPoint cell(static_cast<int>(x), static_cast<int>(y));
@@ -76,33 +94,63 @@ void Renderer::drawMap(const Game& game)
             if (tile.type == TileType::Empty)
                 continue;
 
-            QColor color = Qt::gray;
-            if (tile.type == TileType::Brick)
-                color = QColor(193, 68, 14);
-            if (tile.type == TileType::Steel)
-                color = QColor(160, 160, 160);
-            if (tile.type == TileType::Base) {
-                const bool isBaseCell = (base && cell == baseCell);
-                if (isBaseCell && baseDestroyed) {
-                    color = QColor(60, 60, 60);
-                } else {
-                    color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
-                }
-            }
+            if (m_tileItems.contains(cell))
+                continue;
 
+            const QColor color = tileColor(cell, tile);
             const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
             item->setZValue(0);
-            m_mapItems.append(item);
+            m_tileItems.insert(cell, item);
+        }
+    }
+}
 
-            if (tile.type == TileType::Base && baseDestroyed && cell == baseCell) {
-                const qreal markerMargin = size * 0.25;
-                const QRectF markerRect(pos + QPointF(markerMargin, markerMargin), QSizeF(size - 2 * markerMargin, size - 2 * markerMargin));
-                QGraphicsRectItem* marker = m_scene->addRect(markerRect, QPen(Qt::NoPen), QBrush(QColor(30, 30, 30)));
-                marker->setZValue(1);
-                m_mapItems.append(marker);
+void Renderer::syncMapTiles(const Game& game)
+{
+    const Map* map = game.map();
+    if (!map)
+        return;
+
+    const Base* base = game.base();
+    const QPoint baseCell = base ? base->cell() : QPoint(-1, -1);
+    const bool baseDestroyed = base && base->isDestroyed();
+    const bool blinkPhase = m_baseBlinking && ((m_baseBlinkCounter / 8) % 2 == 0);
+
+    auto tileColor = [&](const QPoint& cell, const Tile& tile) {
+        QColor color = Qt::gray;
+        if (tile.type == TileType::Brick)
+            color = QColor(193, 68, 14);
+        if (tile.type == TileType::Steel)
+            color = QColor(160, 160, 160);
+        if (tile.type == TileType::Base) {
+            const bool isBaseCell = (base && cell == baseCell);
+            if (isBaseCell && baseDestroyed) {
+                color = QColor(60, 60, 60);
+            } else {
+                color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
             }
         }
+        return color;
+    };
+
+    for (auto it = m_tileItems.begin(); it != m_tileItems.end();) {
+        const QPoint cell = it.key();
+        QGraphicsRectItem* item = it.value();
+        const Tile tile = map->tile(cell);
+
+        if (tile.type == TileType::Empty) {
+            m_scene->removeItem(item);
+            delete item;
+            it = m_tileItems.erase(it);
+            continue;
+        }
+
+        const QColor color = tileColor(cell, tile);
+        if (item->brush().color() != color)
+            item->setBrush(color);
+
+        ++it;
     }
 }
 
@@ -376,11 +424,11 @@ void Renderer::initializeMap(const Game& game)
 
 void Renderer::clearMapLayer()
 {
-    for (QGraphicsItem* item : m_mapItems) {
+    for (QGraphicsRectItem* item : std::as_const(m_tileItems)) {
         m_scene->removeItem(item);
         delete item;
     }
-    m_mapItems.clear();
+    m_tileItems.clear();
 }
 
 qreal Renderer::tileSize() const

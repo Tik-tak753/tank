@@ -40,6 +40,7 @@ public:
 private:
     void initializeMap(const Game& game);
     void drawMap(const Game& game);
+    void syncMapTiles(const Game& game);
     void syncTanks(const Game& game);
     void syncBullets(const Game& game);
     void updateExplosions();
@@ -53,7 +54,7 @@ private:
     Camera* m_camera = nullptr;
 
     const Map* m_cachedMap = nullptr;
-    QList<QGraphicsItem*> m_mapItems;
+    QHash<QPoint, QGraphicsRectItem*> m_tileItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
     QHash<QPoint, QGraphicsRectItem*> m_bulletItems;
