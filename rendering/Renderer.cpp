@@ -129,6 +129,39 @@ void Renderer::syncTanks(const Game& game)
         return QRectF();
     };
 
+    auto addExplosionAtItem = [&](QGraphicsRectItem* item) {
+        if (!item || qFuzzyIsNull(size))
+            return;
+
+        const QPointF pos = item->pos();
+        const QPoint cell(qRound(pos.x() / size), qRound(pos.y() / size));
+        m_explosions.append(Explosion{cell, 12});
+    };
+
+    auto removeTankGraphics = [&](const Tank* tankPtr) {
+        QGraphicsRectItem* item = m_tankItems.take(tankPtr);
+        QGraphicsRectItem* directionItem = m_tankDirectionItems.take(tankPtr);
+
+        if (!item && !directionItem)
+            return;
+
+#ifdef QT_DEBUG
+        qDebug() << "Renderer removing tank visuals:" << tankPtr;
+#endif
+
+        addExplosionAtItem(item ? item : directionItem);
+
+        if (item) {
+            m_scene->removeItem(item);
+            delete item;
+        }
+
+        if (directionItem) {
+            m_scene->removeItem(directionItem);
+            delete directionItem;
+        }
+    };
+
     for (Tank* tank : game.tanks()) {
         if (!tank)
             continue;
@@ -138,34 +171,6 @@ void Renderer::syncTanks(const Game& game)
 #endif
         seen.insert(tank);
 
-        if (tank->isDestroyed()) {
-            if (!m_destroyedTanks.contains(tank))
-                m_explosions.append(Explosion{tank->cell(), 12});
-
-            m_destroyedTanks.insert(tank);
-
-            QGraphicsRectItem* item = m_tankItems.take(tank);
-            if (item) {
-#ifdef QT_DEBUG
-                qDebug() << "Renderer removing tank visuals:" << tank;
-#endif
-                m_scene->removeItem(item);
-                delete item;
-            }
-
-            QGraphicsRectItem* directionItem = m_tankDirectionItems.take(tank);
-            if (directionItem) {
-#ifdef QT_DEBUG
-                qDebug() << "Renderer removing tank visuals:" << tank;
-#endif
-                m_scene->removeItem(directionItem);
-                delete directionItem;
-            }
-
-            continue;
-        } else {
-            m_destroyedTanks.remove(tank);
-        }
         QGraphicsRectItem* item = m_tankItems.value(tank, nullptr);
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
@@ -194,36 +199,18 @@ void Renderer::syncTanks(const Game& game)
         directionItem->setPos(pos);
     }
 
-    auto it = m_tankItems.begin();
-    while (it != m_tankItems.end()) {
-        if (!seen.contains(it.key())) {
-            QGraphicsItem* item = it.value();
-            m_scene->removeItem(item);
-            delete item;
-            it = m_tankItems.erase(it);
-        } else {
-            ++it;
-        }
-    }
+    QSet<const Tank*> trackedTanks;
+    trackedTanks.reserve(m_tankItems.size() + m_tankDirectionItems.size());
 
-    auto dirIt = m_tankDirectionItems.begin();
-    while (dirIt != m_tankDirectionItems.end()) {
-        if (!seen.contains(dirIt.key())) {
-            QGraphicsItem* item = dirIt.value();
-            m_scene->removeItem(item);
-            delete item;
-            dirIt = m_tankDirectionItems.erase(dirIt);
-        } else {
-            ++dirIt;
-        }
-    }
+    for (auto it = m_tankItems.cbegin(); it != m_tankItems.cend(); ++it)
+        trackedTanks.insert(it.key());
 
-    auto destroyedIt = m_destroyedTanks.begin();
-    while (destroyedIt != m_destroyedTanks.end()) {
-        if (!seen.contains(*destroyedIt))
-            destroyedIt = m_destroyedTanks.erase(destroyedIt);
-        else
-            ++destroyedIt;
+    for (auto it = m_tankDirectionItems.cbegin(); it != m_tankDirectionItems.cend(); ++it)
+        trackedTanks.insert(it.key());
+
+    for (const Tank* trackedTank : std::as_const(trackedTanks)) {
+        if (!seen.contains(trackedTank))
+            removeTankGraphics(trackedTank);
     }
 }
 
