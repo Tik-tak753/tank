@@ -1,6 +1,8 @@
 #include "systems/CollisionSystem.h"
 
 #include <QDebug>
+#include <QString>
+#include <QStringList>
 #include <QtGlobal>
 
 #include "core/GameState.h"
@@ -12,6 +14,63 @@
 #include "world/Map.h"
 #include "world/Tile.h"
 #include "enums/enums.h"
+
+namespace {
+
+TileCollisionResult resolveTileCollision(const TileType type)
+{
+    switch (type) {
+    case TileType::Empty:
+        return {};
+
+    case TileType::Brick:
+        return {true, true, false};
+
+    case TileType::Steel:
+        return {true, false, false};
+
+    case TileType::Base:
+        return {true, false, true};
+    }
+
+    Q_UNREACHABLE();
+}
+
+QString tileTypeToString(const TileType type)
+{
+    switch (type) {
+    case TileType::Empty:
+        return "Empty";
+    case TileType::Brick:
+        return "Brick";
+    case TileType::Steel:
+        return "Steel";
+    case TileType::Base:
+        return "Base";
+    }
+
+    Q_UNREACHABLE();
+}
+
+QString formatTileCollisionLog(const TileType type, const TileCollisionResult& result)
+{
+    QStringList effects;
+
+    if (result.destroyBullet)
+        effects << "bullet destroyed";
+
+    if (result.destroyTile)
+        effects << "tile destroyed";
+
+    if (result.damageBase)
+        effects << "base damaged";
+
+    const QString effectText = effects.isEmpty() ? "no effect" : effects.join(", ");
+
+    return QString("[COLLISION] Bullet ↔ %1 → %2").arg(tileTypeToString(type), effectText);
+}
+
+} // namespace
 
 void CollisionSystem::resolve(
     Map& map,
@@ -34,29 +93,9 @@ void CollisionSystem::resolve(
             destroyBullet = true;
         } else {
             const Tile target = map.tile(cell);
-            TileCollisionResult tileResult;
+            const TileCollisionResult tileResult = resolveTileCollision(target.type);
 
-            switch (target.type) {
-            case TileType::Empty:
-                break;
-
-            case TileType::Brick:
-                qDebug() << "[COLLISION] Bullet ↔ Brick → tile destroyed";
-                tileResult.destroyBullet = true;
-                tileResult.destroyTile = true;
-                break;
-
-            case TileType::Steel:
-                qDebug() << "[COLLISION] Bullet ↔ Steel → bullet destroyed, tile intact";
-                tileResult.destroyBullet = true;
-                break;
-
-            case TileType::Base:
-                qDebug() << "[COLLISION] Bullet ↔ Base → base damaged";
-                tileResult.destroyBullet = true;
-                tileResult.damageBase = true;
-                break;
-            }
+            qDebug() << formatTileCollisionLog(target.type, tileResult);
 
             if (tileResult.destroyTile)
                 map.setTile(cell, TileFactory::empty());
