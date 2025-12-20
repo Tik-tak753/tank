@@ -57,6 +57,7 @@ private:
     void updateTanks(int deltaMs);
     void spawnPendingBullets();
     void removeDeadTanks();
+    void updatePlayerRespawn(int deltaMs);
     void updateEnemySpawning(int deltaMs);
     bool trySpawnEnemy();
     bool canSpawnEnemyAt(const QPoint& cell) const;
@@ -80,9 +81,12 @@ private:
     std::unique_ptr<CollisionSystem> m_collisionSystem;
 
     QList<QPoint> m_enemySpawnPoints;
+    QPoint m_playerSpawn;
     qsizetype m_nextSpawnIndex = 0;
     int m_maxAliveEnemies = 0;
     int m_enemySpawnCooldownMs = 0;
+    int m_playerRespawnCooldownMs = 0;
+    int m_playerRespawnDelayMs = 800;
     int m_enemyRespawnDelayMs = 800;
 };
 

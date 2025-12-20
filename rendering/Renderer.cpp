@@ -290,27 +290,41 @@ void Renderer::updateHud(const Game& game)
     const qreal mapWidthInPixels = static_cast<qreal>(map->size().width()) * size;
     const QPointF hudPosition(mapWidthInPixels + hudMargin, hudMargin);
 
-    if (!m_hudItem) {
-        m_hudItem = m_scene->addText(QString());
-        m_hudItem->setDefaultTextColor(Qt::white);
-        QFont font = m_hudItem->font();
-        font.setPointSize(16);
-        m_hudItem->setFont(font);
-        m_hudItem->setZValue(100);
-    }
-
-    if (m_hudItem->pos() != hudPosition)
-        m_hudItem->setPos(hudPosition);
+    auto ensureHudItem = [&](QGraphicsTextItem*& item, const QColor& color) {
+        if (!item) {
+            item = m_scene->addText(QString());
+            item->setDefaultTextColor(color);
+            QFont font = item->font();
+            font.setPointSize(16);
+            item->setFont(font);
+            item->setZValue(100);
+        }
+    };
 
     const int lives = game.state().remainingLives();
     const int enemyCount = game.state().aliveEnemies();
 
-    const QString text = QStringLiteral("LIVES: %1\nENEMIES: %2")
-                             .arg(lives)
-                             .arg(enemyCount);
+    ensureHudItem(m_hudLivesItem, QColor(80, 200, 120));
+    ensureHudItem(m_hudEnemiesItem, QColor(220, 70, 70));
 
-    if (m_hudItem->toPlainText() != text)
-        m_hudItem->setPlainText(text);
+    const QString livesText = QStringLiteral("LIVES: %1").arg(lives);
+    const QString enemiesText = QStringLiteral("ENEMIES: %1").arg(enemyCount);
+
+    if (m_hudLivesItem->toPlainText() != livesText)
+        m_hudLivesItem->setPlainText(livesText);
+
+    if (m_hudEnemiesItem->toPlainText() != enemiesText)
+        m_hudEnemiesItem->setPlainText(enemiesText);
+
+    const qreal lineSpacing = size * 0.2;
+    const qreal lineHeight = m_hudLivesItem->boundingRect().height();
+
+    if (m_hudLivesItem->pos() != hudPosition)
+        m_hudLivesItem->setPos(hudPosition);
+
+    const QPointF enemiesPos = hudPosition + QPointF(0, lineHeight + lineSpacing);
+    if (m_hudEnemiesItem->pos() != enemiesPos)
+        m_hudEnemiesItem->setPos(enemiesPos);
 }
 
 void Renderer::updateBaseBlinking(const Game& game)

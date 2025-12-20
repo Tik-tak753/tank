@@ -58,7 +58,8 @@ private:
     QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
     QList<QGraphicsRectItem*> m_explosionItems;
-    QGraphicsTextItem* m_hudItem = nullptr;
+    QGraphicsTextItem* m_hudLivesItem = nullptr;
+    QGraphicsTextItem* m_hudEnemiesItem = nullptr;
 
     bool m_baseBlinking = false;
     int m_baseBlinkCounter = 0;
