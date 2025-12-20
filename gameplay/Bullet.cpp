@@ -1,5 +1,7 @@
 #include "gameplay/Bullet.h"
 
+#include <QDebug>
+
 namespace {
 constexpr qsizetype kStepIntervalMs = 120;
 
@@ -21,6 +23,13 @@ Bullet::Bullet(const QPoint& cell, Direction dir, const Tank* owner)
       m_direction(dir),
       m_owner(owner)
 {
+}
+
+Bullet::~Bullet()
+{
+#ifdef QT_DEBUG
+    qDebug() << "Bullet destroyed:" << this;
+#endif
 }
 
 void Bullet::update(int deltaMs)

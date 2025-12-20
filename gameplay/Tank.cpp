@@ -1,5 +1,7 @@
 #include "gameplay/Tank.h"
 
+#include <QDebug>
+
 #include "gameplay/Bullet.h"
 
 namespace {
@@ -7,12 +9,29 @@ constexpr int kDefaultDeltaMs = 16;
 constexpr int kDestructionDelayMs = 350;
 }
 
+#ifdef QT_DEBUG
+QSet<const Tank*> Tank::s_aliveTanks;
+#endif
+
 Tank::Tank(const QPoint& cell)
     : GameObject(QPointF(cell))
 {
+#ifdef QT_DEBUG
+    Q_ASSERT(!s_aliveTanks.contains(this));
+    s_aliveTanks.insert(this);
+#endif
     m_health.setMaxHealth(1);
     m_health.setLives(1);
     m_weapon.setReloadTime(400);
+}
+
+Tank::~Tank()
+{
+#ifdef QT_DEBUG
+    Q_ASSERT(s_aliveTanks.contains(this));
+    s_aliveTanks.remove(this);
+    qDebug() << "Tank destroyed:" << this;
+#endif
 }
 
 void Tank::setSpeed(float speed)

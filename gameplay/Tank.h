@@ -2,6 +2,7 @@
 #define TANK_H
 
 #include <QPoint>
+#include <QSet>
 #include <memory>
 
 #include "gameplay/Direction.h"
@@ -19,7 +20,11 @@ class Tank : public GameObject
 {
 public:
     explicit Tank(const QPoint& cell);
-    virtual ~Tank() = default;
+    virtual ~Tank();
+
+#ifdef QT_DEBUG
+    static QSet<const Tank*> s_aliveTanks;
+#endif
 
     bool isDestroyed() const { return m_destroyed; }
     bool isDestructionFinished() const { return m_destroyed && m_destructionTimerMs <= 0; }

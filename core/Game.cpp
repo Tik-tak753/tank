@@ -1,6 +1,7 @@
 #include "core/Game.h"
 
 #include <QtGlobal>
+#include <QDebug>
 
 #include "gameplay/EnemyTank.h"
 #include "gameplay/PlayerTank.h"
@@ -154,6 +155,9 @@ void Game::removeDeadTanks()
         if (!tank)
             continue;
 
+#ifdef QT_DEBUG
+        Q_ASSERT(!m_tanks.contains(nullptr));
+#endif
         if (!tank->health().isAlive() && !tank->isDestroyed())
             tank->markDestroyed();
 
@@ -171,12 +175,23 @@ void Game::removeDeadTanks()
             enemyDestroyed = true;
         }
 
+#ifdef QT_DEBUG
+        qDebug() << "Game deleting tank:" << tank;
+#endif
         delete tank;
         m_tanks.removeAt(i - 1);
+#ifdef QT_DEBUG
+        Q_ASSERT(!m_tanks.contains(tank));
+#endif
     }
 
     if (enemyDestroyed && m_state.enemiesToSpawn() > 0 && m_enemySpawnCooldownMs == 0)
         m_enemySpawnCooldownMs = m_enemyRespawnDelayMs;
+
+#ifdef QT_DEBUG
+    for (EnemyTank* e : m_enemies)
+        Q_ASSERT(e && !e->isDestroyed());
+#endif
 }
 
 void Game::updatePlayerRespawn(int deltaMs)
@@ -196,6 +211,9 @@ void Game::updatePlayerRespawn(int deltaMs)
     if (!canSpawnEnemyAt(m_playerSpawn))
         return;
 
+#ifdef QT_DEBUG
+    Q_ASSERT(m_player == nullptr);
+#endif
     auto player = std::make_unique<PlayerTank>(m_playerSpawn);
     player->setMap(m_map.get());
     player->setInput(m_inputSystem);
@@ -203,6 +221,9 @@ void Game::updatePlayerRespawn(int deltaMs)
 
     m_player = player.get();
     m_tanks.append(player.release());
+#ifdef QT_DEBUG
+    Q_ASSERT(m_tanks.contains(m_player));
+#endif
 }
 
 void Game::updateEnemySpawning(int deltaMs)

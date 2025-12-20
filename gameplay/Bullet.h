@@ -15,6 +15,7 @@ class Bullet
 {
 public:
     Bullet(const QPoint& cell, Direction dir, const Tank* owner);
+    ~Bullet();
 
     QPoint cell() const { return m_cell; }
     Direction direction() const { return m_direction; }

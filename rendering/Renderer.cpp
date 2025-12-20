@@ -10,6 +10,7 @@
 #include <QPen>
 #include <QSet>
 #include <QtGlobal>
+#include <QDebug>
 #include <algorithm>
 #include <utility>
 
@@ -132,6 +133,9 @@ void Renderer::syncTanks(const Game& game)
         if (!tank)
             continue;
 
+#ifdef QT_DEBUG
+        Q_ASSERT(Tank::s_aliveTanks.contains(tank));
+#endif
         seen.insert(tank);
 
         if (tank->isDestroyed()) {
@@ -142,12 +146,18 @@ void Renderer::syncTanks(const Game& game)
 
             QGraphicsRectItem* item = m_tankItems.take(tank);
             if (item) {
+#ifdef QT_DEBUG
+                qDebug() << "Renderer removing tank visuals:" << tank;
+#endif
                 m_scene->removeItem(item);
                 delete item;
             }
 
             QGraphicsRectItem* directionItem = m_tankDirectionItems.take(tank);
             if (directionItem) {
+#ifdef QT_DEBUG
+                qDebug() << "Renderer removing tank visuals:" << tank;
+#endif
                 m_scene->removeItem(directionItem);
                 delete directionItem;
             }
@@ -230,6 +240,9 @@ void Renderer::syncBullets(const Game& game)
         if (!bullet || !bullet->isAlive())
             continue;
 
+#ifdef QT_DEBUG
+        Q_ASSERT(!m_deletedBulletsDebug.contains(bullet));
+#endif
         currentBullets.insert(bullet);
         QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
         if (!item) {
@@ -250,6 +263,9 @@ void Renderer::syncBullets(const Game& game)
             if (map && map->isInside(cell) && shouldExplode)
                 m_explosions.append(Explosion{cell, 12});
             m_lastBulletCells.remove(bullet);
+#ifdef QT_DEBUG
+            m_deletedBulletsDebug.insert(bullet);
+#endif
         }
     }
 
