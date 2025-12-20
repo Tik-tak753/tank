@@ -1,5 +1,6 @@
 #include "systems/CollisionSystem.h"
 
+#include <QDebug>
 #include <QtGlobal>
 
 #include "core/GameState.h"
@@ -44,6 +45,9 @@ void CollisionSystem::resolve(
                 break;
 
             case TileType::Steel:
+                qDebug() << "[BULLET] Hit STEEL tile at"
+                         << QStringLiteral("(%1, %2)").arg(cell.x()).arg(cell.y())
+                         << "→ blocked";
                 destroyBullet = true;
                 break;
 
