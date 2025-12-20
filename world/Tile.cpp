@@ -9,6 +9,8 @@ int Tile::maxDamage() const
     case TileType::Brick:
         return 4;
     case TileType::Steel:
+        // Сталева стіна повинна витримувати будь-яку кількість влучань,
+        // тому повертаємо "нескінченний" ліміт замість спеціальних умов у логіці.
         return std::numeric_limits<int>::max();
     case TileType::Empty:
     case TileType::Base:
@@ -44,6 +46,8 @@ bool Tile::isDestroyed() const
 
 Tile TileFactory::brick()
 {
+    // Цегла блокує і танки, і кулі, але має кінцевий запас міцності.
+    // CollisionSystem лише читає mask+destructible, тому поведінка задається даними.
     Tile t;
     t.type = TileType::Brick;
     t.blockMask = BlockTank | BlockBullet;
@@ -54,6 +58,8 @@ Tile TileFactory::brick()
 
 Tile TileFactory::steel()
 {
+    // Сталь теж блокує все, але не руйнується: це гарантує фіксовані бар'єри,
+    // не потребуючи спеціальних умов у системі колізій.
     Tile t;
     t.type = TileType::Steel;
     t.blockMask = BlockTank | BlockBullet;
@@ -84,6 +90,8 @@ Tile TileFactory::base()
 
 Tile TileFactory::forest()
 {
+    // Лісова клітинка прозора для куль і прохідна для техніки:
+    // маска BlockNone дозволяє залишити рішення в даних, а не в коді.
     Tile t;
     t.type = TileType::Forest;
     t.blockMask = BlockNone;
@@ -94,6 +102,7 @@ Tile TileFactory::forest()
 
 Tile TileFactory::water()
 {
+    // Вода зупиняє рух і снаряди, але не руйнується, що дозволяє стабільно контролювати маршрути.
     Tile t;
     t.type = TileType::Water;
     t.blockMask = BlockTank | BlockBullet;

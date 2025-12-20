@@ -10,7 +10,6 @@
 #include <QPen>
 #include <QSet>
 #include <QtGlobal>
-#include <QDebug>
 #include <algorithm>
 #include <utility>
 #include <QString>
@@ -157,7 +156,6 @@ void Renderer::syncTanks(const Game& game)
             auto removeItemSafely = [&](QGraphicsItem* item, const QString& reason) {
                 if (!item)
                     return;
-                qDebug() << "[Renderer]" << reason << "remove item" << item << "for tank" << tank;
                 m_scene->removeItem(item);
                 delete item;
             };
@@ -177,7 +175,6 @@ void Renderer::syncTanks(const Game& game)
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
             item->setZValue(10);
             m_tankItems.insert(tank, item);
-            qDebug() << "[Renderer] Create tank item" << item << "for" << tank;
         }
 
         QGraphicsRectItem* directionItem = m_tankDirectionItems.value(tank, nullptr);
@@ -185,7 +182,6 @@ void Renderer::syncTanks(const Game& game)
             directionItem = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(barrelThickness, barrelLength)), QPen(Qt::NoPen), QBrush(Qt::black));
             directionItem->setZValue(11);
             m_tankDirectionItems.insert(tank, directionItem);
-            qDebug() << "[Renderer] Create barrel item" << directionItem << "for" << tank;
         }
 
         QColor bodyColor(40, 160, 32);
@@ -210,7 +206,6 @@ void Renderer::syncTanks(const Game& game)
     while (it != m_tankItems.end()) {
         if (!seen.contains(it.key())) {
             QGraphicsItem* item = it.value();
-            qDebug() << "[Renderer] Prune tank item" << item << "for missing tank" << it.key();
             m_scene->removeItem(item);
             delete item;
             it = m_tankItems.erase(it);
@@ -223,7 +218,6 @@ void Renderer::syncTanks(const Game& game)
     while (dirIt != m_tankDirectionItems.end()) {
         if (!seen.contains(dirIt.key())) {
             QGraphicsItem* item = dirIt.value();
-            qDebug() << "[Renderer] Prune barrel item" << item << "for missing tank" << dirIt.key();
             m_scene->removeItem(item);
             delete item;
             dirIt = m_tankDirectionItems.erase(dirIt);
@@ -266,7 +260,6 @@ void Renderer::syncBullets(const Game& game)
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
             item->setZValue(20);
             m_bulletItems.insert(bullet, item);
-            qDebug() << "[Renderer] Create bullet item" << item << "for" << bullet;
         }
 
         const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
@@ -290,7 +283,6 @@ void Renderer::syncBullets(const Game& game)
     while (it != m_bulletItems.end()) {
         if (!currentBullets.contains(it.key())) {
             QGraphicsItem* item = it.value();
-            qDebug() << "[Renderer] Remove bullet item" << item << "for missing bullet" << it.key();
             m_scene->removeItem(item);
             delete item;
             it = m_bulletItems.erase(it);
@@ -378,8 +370,6 @@ void Renderer::updateHud(const Game& game)
 
     if (m_lastHudStatus != statusText) {
         m_lastHudStatus = statusText;
-        if (!statusText.isEmpty())
-            qDebug() << "[GAME] HUD status updated:" << statusText;
     }
 }
 

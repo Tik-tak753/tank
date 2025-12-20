@@ -17,6 +17,8 @@ void CollisionSystem::resolve(
     Base* base,
     GameState& state)
 {
+    // Система лише звіряє маски взаємодії: вона не знає конкретних типів тайлів,
+    // а перевіряє, чи дозволено снаряду або танку зайти в клітинку.
     for (qsizetype i = 0; i < bullets.size(); ++i) {
         Bullet* bullet = bullets.at(i);
         if (!bullet || !bullet->isAlive())
@@ -53,6 +55,7 @@ void CollisionSystem::resolve(
                 }
 
                 if (tank->cell() == cell) {
+                    // Куля пошкоджує танк, якщо маски дійшли до прямого контакту.
                     tank->health().takeDamage(1);
 
                     if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
@@ -87,10 +90,13 @@ bool CollisionSystem::handleBulletMapCollision(
 
     Tile tile = map.tile(cell);
 
+    // Маска BlockBullet визначає, чи взагалі куля повинна зупинятися на тайлі.
+    // Це дозволяє описувати винятки (наприклад, ліс не блокує кулі) на рівні даних.
     if (!(tile.blockMask & BlockBullet))
         return false;
 
     if (base && cell == base->cell()) {
+        // База поводиться як звичайний тайл: CollisionSystem лише делегує шкоду власнику.
         base->takeDamage();
 
         if (base->isDestroyed() && !state.isBaseDestroyed()) {
