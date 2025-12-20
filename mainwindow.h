@@ -2,15 +2,17 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <memory>
 
 class QGraphicsScene;
+class QGraphicsView;
 class QTimer;
+class QKeyEvent;
+class QGraphicsTextItem;
 
-class WorldView;
-class TileMap;
-
-class Agent;
-class AgentItem;
+class Game;
+class InputSystem;
+class Renderer;
 
 class MainWindow : public QMainWindow
 {
@@ -20,20 +22,23 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
+
 private:
     // View / Scene
-    QGraphicsScene* scene = nullptr;
-    WorldView* view = nullptr;
+    QGraphicsScene* m_scene = nullptr;
+    QGraphicsView* m_view = nullptr;
 
-    // Model
-    TileMap* map = nullptr;
-    Agent* agent = nullptr;
-
-    // View (agent)
-    AgentItem* agentItem = nullptr;
+    // Game
+    std::unique_ptr<Game> m_game;
+    std::unique_ptr<InputSystem> m_input;
+    std::unique_ptr<Renderer> m_renderer;
+    QGraphicsTextItem* m_gameOverItem = nullptr;
 
     // Timer
-    QTimer* timer = nullptr;
+    QTimer* m_timer = nullptr;
 };
 
 #endif // MAINWINDOW_H

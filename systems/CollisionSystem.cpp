@@ -1,57 +1,91 @@
 #include "systems/CollisionSystem.h"
 
-#include <algorithm>
+#include <QtGlobal>
 
 #include "core/GameState.h"
 #include "gameplay/Bullet.h"
+#include "gameplay/EnemyTank.h"
 #include "gameplay/Tank.h"
 #include "world/Base.h"
 #include "world/Map.h"
 #include "world/Tile.h"
 
-void CollisionSystem::resolve(Map& map, QList<Tank*>& tanks, QList<Bullet*>& bullets, Base* base, GameState& state)
+void CollisionSystem::resolve(
+    Map& map,
+    QList<Tank*>& tanks,
+    QList<Bullet*>& bullets,
+    Base* base,
+    GameState& state)
 {
-    for (int i = bullets.size() - 1; i >= 0; --i) {
+    for (qsizetype i = 0; i < bullets.size(); ++i) {
         Bullet* bullet = bullets.at(i);
-        const QPoint cell = bullet->position().toPoint();
+        if (!bullet || !bullet->isAlive())
+            continue;
 
-        bool removeBullet = false;
+        const QPoint cell = bullet->cell();
+        bool destroyBullet = false;
 
+        // ---- Out of bounds ----
         if (!map.isInside(cell)) {
-            removeBullet = true;
+            destroyBullet = true;
         } else {
-            Tile tile = map.tile(cell);
-            if (!tile.walkable) {
-                if (tile.destructible && tile.type != TileType::Base)
-                    map.setTile(cell, TileFactory::empty());
+            const Tile target = map.tile(cell);
 
-                if (tile.type == TileType::Base && base) {
+            switch (target.type) {
+            case TileType::Empty:
+                break;
+
+            case TileType::Brick:
+                map.setTile(cell, TileFactory::empty());
+                destroyBullet = true;
+                break;
+
+            case TileType::Steel:
+                destroyBullet = true;
+                break;
+
+            case TileType::Base:
+                destroyBullet = true;
+
+                if (base && !state.isBaseDestroyed()) {
                     base->takeDamage();
-                    state.setBaseDestroyed();
-                }
-                removeBullet = true;
-            }
 
+                    if (base->isDestroyed()) {
+                        state.setBaseDestroyed();
+                        map.setTile(cell, TileFactory::empty());
+                    }
+                }
+                break;
+            }
+        }
+
+        // ---- Tank collision ----
+        if (!destroyBullet) {
             for (Tank* tank : tanks) {
+                if (!tank)
+                    continue;
+
+                if (tank->isDestroyed())
+                    continue;
+
+                if (tank == bullet->owner())
+                    continue;
+
                 if (tank->cell() == cell) {
                     tank->health().takeDamage(1);
-                    removeBullet = true;
+
+                    if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+                        if (enemy->health().isAlive())
+                            enemy->triggerHitFeedback();
+                    }
+
+                    destroyBullet = true;
                     break;
                 }
             }
         }
 
-        if (removeBullet) {
-            delete bullet;
-            bullets.removeAt(i);
-        }
-    }
-
-    for (int i = tanks.size() - 1; i >= 0; --i) {
-        Tank* tank = tanks.at(i);
-        if (!tank->health().isAlive()) {
-            delete tank;
-            tanks.removeAt(i);
-        }
+        if (destroyBullet)
+            bullet->destroy();
     }
 }

@@ -2,36 +2,54 @@
 
 Map::Map(int width, int height)
     : m_size(width, height),
-      m_tiles(width * height, TileFactory::empty())
+      m_width(static_cast<qsizetype>(width)),
+      m_height(static_cast<qsizetype>(height)),
+      m_tiles(m_height, QVector<Tile>(m_width, TileFactory::empty()))
 {
-}
-
-int Map::index(const QPoint& cell) const
-{
-    return cell.y() * m_size.width() + cell.x();
 }
 
 bool Map::isInside(const QPoint& cell) const
 {
-    return cell.x() >= 0 && cell.y() >= 0 &&
-           cell.x() < m_size.width() && cell.y() < m_size.height();
+    const int xInt = cell.x();
+    const int yInt = cell.y();
+    if (xInt < 0 || yInt < 0)
+        return false;
+
+    const qsizetype x = static_cast<qsizetype>(xInt);
+    const qsizetype y = static_cast<qsizetype>(yInt);
+    return x < m_width && y < m_height;
 }
 
 Tile Map::tile(const QPoint& cell) const
 {
     if (!isInside(cell))
         return TileFactory::steel();
-    return m_tiles[index(cell)];
+
+    const qsizetype x = static_cast<qsizetype>(cell.x());
+    const qsizetype y = static_cast<qsizetype>(cell.y());
+    return m_tiles.at(y).at(x);
 }
 
 void Map::setTile(const QPoint& cell, const Tile& tile)
 {
     if (!isInside(cell))
         return;
-    m_tiles[index(cell)] = tile;
+
+    const qsizetype x = static_cast<qsizetype>(cell.x());
+    const qsizetype y = static_cast<qsizetype>(cell.y());
+    m_tiles[y][x] = tile;
 }
 
 bool Map::isWalkable(const QPoint& cell) const
 {
-    return tile(cell).walkable;
+    const Tile target = tile(cell);
+    switch (target.type) {
+    case TileType::Empty:
+        return true;
+    case TileType::Brick:
+    case TileType::Steel:
+    case TileType::Base:
+        return false;
+    }
+    return false;
 }

@@ -4,15 +4,13 @@
 #include <QList>
 
 class Bullet;
-class Map;
-
 /*
  * PhysicsSystem відповідає за оновлення руху снарядів та час їх життя.
  */
 class PhysicsSystem
 {
 public:
-    void update(QList<Bullet*>& bullets, const Map& map);
+    void update(QList<Bullet*>& bullets, int deltaMs);
 };
 
 #endif // PHYSICSSYSTEM_H

@@ -1,9 +1,12 @@
 #ifndef BULLET_H
 #define BULLET_H
 
-#include <QPointF>
+#include <QPoint>
+#include <QtGlobal>
 
 #include "gameplay/Direction.h"
+
+class Tank;
 
 /*
  * Bullet відповідає за рух снаряду та його життєвий цикл.
@@ -11,20 +14,24 @@
 class Bullet
 {
 public:
-    Bullet(const QPointF& pos, Direction dir, float speed);
+    Bullet(const QPoint& cell, Direction dir, const Tank* owner);
 
-    QPointF position() const { return m_position; }
+    QPoint cell() const { return m_cell; }
     Direction direction() const { return m_direction; }
+    QPoint directionDelta() const;
+    QPoint nextCell() const;
+    bool isAlive() const { return m_alive; }
+    const Tank* owner() const { return m_owner; }
 
     void update(int deltaMs);
-    bool isExpired() const;
+    void destroy();
 
 private:
-    QPointF m_position;
+    QPoint m_cell;
     Direction m_direction;
-    float m_speed;
-    int m_lifetimeMs = 1200;
-    int m_elapsedMs = 0;
+    const Tank* m_owner = nullptr;
+    qsizetype m_elapsedMs = 0;
+    bool m_alive = true;
 };
 
 #endif // BULLET_H

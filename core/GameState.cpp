@@ -1,5 +1,7 @@
 #include "core/GameState.h"
 
+#include <QtGlobal>
+
 GameState::GameState()
 {
 }
@@ -8,6 +10,7 @@ void GameState::reset(int playerLives, int enemies)
 {
     m_playerLives = playerLives;
     m_enemiesLeft = enemies;
+    m_aliveEnemies = 0;
     m_baseDestroyed = false;
 }
 
@@ -18,12 +21,14 @@ void GameState::setBaseDestroyed()
 
 void GameState::registerSpawnedEnemy()
 {
-    // майбутні хвилі можуть збільшувати кількість ворогів у грі
-    ++m_enemiesLeft;
+    ++m_aliveEnemies; // spawning an enemy only affects alive count
 }
 
 void GameState::registerEnemyDestroyed()
 {
+    if (m_aliveEnemies > 0)
+        --m_aliveEnemies;
+
     if (m_enemiesLeft > 0)
         --m_enemiesLeft;
 }
@@ -42,6 +47,16 @@ int GameState::remainingLives() const
 int GameState::remainingEnemies() const
 {
     return m_enemiesLeft;
+}
+
+int GameState::aliveEnemies() const
+{
+    return m_aliveEnemies;
+}
+
+int GameState::enemiesToSpawn() const
+{
+    return qMax(0, m_enemiesLeft - m_aliveEnemies);
 }
 
 bool GameState::isBaseDestroyed() const

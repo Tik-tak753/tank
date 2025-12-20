@@ -2,13 +2,21 @@
 
 #include <QBrush>
 #include <QColor>
+#include <QGraphicsItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
+#include <QGraphicsTextItem>
+#include <QFont>
 #include <QPen>
+#include <QSet>
+#include <QtGlobal>
+#include <algorithm>
+#include <utility>
 
 #include "core/Game.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/Tank.h"
+#include "gameplay/EnemyTank.h"
 #include "rendering/Camera.h"
 #include "rendering/SpriteManager.h"
 #include "utils/Constants.h"
@@ -36,10 +44,14 @@ void Renderer::renderFrame(const Game& game)
     if (!m_scene)
         return;
 
-    m_scene->clear();
-    drawMap(game);
-    drawTanks(game);
-    drawBullets(game);
+    updateBaseBlinking(game);
+    clearMapLayer();     // DEBUG ONLY
+    drawMap(game);       // reflect runtime tile changes
+
+    syncTanks(game);
+    syncBullets(game);
+    updateExplosions();
+    updateHud(game);
 }
 
 void Renderer::drawMap(const Game& game)
@@ -47,11 +59,20 @@ void Renderer::drawMap(const Game& game)
     const Map* map = game.map();
     if (!map)
         return;
+    const Base* base = game.base();
+    const QPoint baseCell = base ? base->cell() : QPoint(-1, -1);
+    const bool baseDestroyed = base && base->isDestroyed();
+    const bool blinkPhase = m_baseBlinking && ((m_baseBlinkCounter / 8) % 2 == 0);
 
-    const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
-    for (int y = 0; y < map->size().height(); ++y) {
-        for (int x = 0; x < map->size().width(); ++x) {
-            const Tile tile = map->tile(QPoint(x, y));
+    const qreal size = tileSize();
+    const QSize mapSize = map->size();
+    const qsizetype height = static_cast<qsizetype>(mapSize.height());
+    const qsizetype width = static_cast<qsizetype>(mapSize.width());
+
+    for (qsizetype y = 0; y < height; ++y) {
+        for (qsizetype x = 0; x < width; ++x) {
+            const QPoint cell(static_cast<int>(x), static_cast<int>(y));
+            const Tile tile = map->tile(cell);
             if (tile.type == TileType::Empty)
                 continue;
 
@@ -60,34 +81,309 @@ void Renderer::drawMap(const Game& game)
                 color = QColor(193, 68, 14);
             if (tile.type == TileType::Steel)
                 color = QColor(160, 160, 160);
-            if (tile.type == TileType::Base)
-                color = QColor(230, 230, 0);
+            if (tile.type == TileType::Base) {
+                const bool isBaseCell = (base && cell == baseCell);
+                if (isBaseCell && baseDestroyed) {
+                    color = QColor(60, 60, 60);
+                } else {
+                    color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
+                }
+            }
 
-            QPointF pos(x * tileSize, y * tileSize);
-            m_scene->addRect(QRectF(pos, QSizeF(tileSize, tileSize)), QPen(Qt::NoPen), QBrush(color));
+            const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
+            QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
+            item->setZValue(0);
+            m_mapItems.append(item);
+
+            if (tile.type == TileType::Base && baseDestroyed && cell == baseCell) {
+                const qreal markerMargin = size * 0.25;
+                const QRectF markerRect(pos + QPointF(markerMargin, markerMargin), QSizeF(size - 2 * markerMargin, size - 2 * markerMargin));
+                QGraphicsRectItem* marker = m_scene->addRect(markerRect, QPen(Qt::NoPen), QBrush(QColor(30, 30, 30)));
+                marker->setZValue(1);
+                m_mapItems.append(marker);
+            }
         }
     }
 }
 
-void Renderer::drawTanks(const Game& game)
+void Renderer::syncTanks(const Game& game)
 {
-    const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
+    const qreal size = tileSize();
+    const qreal barrelLength = size * 0.6;
+    const qreal barrelThickness = size * 0.2;
+    QSet<const Tank*> seen;
+
+    auto barrelRectForDirection = [&](Direction dir) {
+        switch (dir) {
+        case Direction::Up:
+            return QRectF((size - barrelThickness) / 2.0, 0, barrelThickness, barrelLength);
+        case Direction::Down:
+            return QRectF((size - barrelThickness) / 2.0, size - barrelLength, barrelThickness, barrelLength);
+        case Direction::Left:
+            return QRectF(0, (size - barrelThickness) / 2.0, barrelLength, barrelThickness);
+        case Direction::Right:
+            return QRectF(size - barrelLength, (size - barrelThickness) / 2.0, barrelLength, barrelThickness);
+        }
+
+        return QRectF();
+    };
+
     for (Tank* tank : game.tanks()) {
-        QPointF pos = QPointF(tank->cell()) * tileSize;
-        QColor color = QColor(40, 160, 32);
-        m_scene->addRect(QRectF(pos, QSizeF(tileSize, tileSize)), QPen(Qt::black), QBrush(color));
+        if (!tank)
+            continue;
+
+        seen.insert(tank);
+
+        if (tank->isDestroyed()) {
+            if (!m_destroyedTanks.contains(tank))
+                m_explosions.append(Explosion{tank->cell(), 12});
+
+            m_destroyedTanks.insert(tank);
+
+            QGraphicsRectItem* item = m_tankItems.take(tank);
+            if (item) {
+                m_scene->removeItem(item);
+                delete item;
+            }
+
+            QGraphicsRectItem* directionItem = m_tankDirectionItems.take(tank);
+            if (directionItem) {
+                m_scene->removeItem(directionItem);
+                delete directionItem;
+            }
+
+            continue;
+        } else {
+            m_destroyedTanks.remove(tank);
+        }
+        QGraphicsRectItem* item = m_tankItems.value(tank, nullptr);
+        if (!item) {
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
+            item->setZValue(10);
+            m_tankItems.insert(tank, item);
+        }
+
+        QGraphicsRectItem* directionItem = m_tankDirectionItems.value(tank, nullptr);
+        if (!directionItem) {
+            directionItem = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(barrelThickness, barrelLength)), QPen(Qt::NoPen), QBrush(Qt::black));
+            directionItem->setZValue(11);
+            m_tankDirectionItems.insert(tank, directionItem);
+        }
+
+        QColor bodyColor(40, 160, 32);
+        if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+            if (enemy->isHitFeedbackActive())
+                bodyColor = QColor(230, 230, 230);
+        }
+        if (item->brush().color() != bodyColor)
+            item->setBrush(bodyColor);
+
+        const QPointF pos = QPointF(tank->cell()) * size;
+        item->setPos(pos);
+        directionItem->setRect(barrelRectForDirection(tank->direction()));
+        directionItem->setPos(pos);
+    }
+
+    auto it = m_tankItems.begin();
+    while (it != m_tankItems.end()) {
+        if (!seen.contains(it.key())) {
+            QGraphicsItem* item = it.value();
+            m_scene->removeItem(item);
+            delete item;
+            it = m_tankItems.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    auto dirIt = m_tankDirectionItems.begin();
+    while (dirIt != m_tankDirectionItems.end()) {
+        if (!seen.contains(dirIt.key())) {
+            QGraphicsItem* item = dirIt.value();
+            m_scene->removeItem(item);
+            delete item;
+            dirIt = m_tankDirectionItems.erase(dirIt);
+        } else {
+            ++dirIt;
+        }
+    }
+
+    auto destroyedIt = m_destroyedTanks.begin();
+    while (destroyedIt != m_destroyedTanks.end()) {
+        if (!seen.contains(*destroyedIt))
+            destroyedIt = m_destroyedTanks.erase(destroyedIt);
+        else
+            ++destroyedIt;
     }
 }
 
-void Renderer::drawBullets(const Game& game)
+void Renderer::syncBullets(const Game& game)
 {
-    const int tileSize = m_camera ? m_camera->tileSize() : TILE_SIZE;
+    const Map* map = game.map();
+    const qreal size = tileSize();
+    const qreal bulletSize = size / 2.0;
+    QSet<const Bullet*> currentBullets;
+
+    const QPointF bulletOffset((size - bulletSize) / 2.0, (size - bulletSize) / 2.0);
+
     for (Bullet* bullet : game.bullets()) {
-        QPointF pos = bullet->position();
-        if (m_camera)
-            pos = m_camera->toScene(pos);
+        if (!bullet || !bullet->isAlive())
+            continue;
+
+        currentBullets.insert(bullet);
+        QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
+        if (!item) {
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+            item->setZValue(20);
+            m_bulletItems.insert(bullet, item);
+        }
+
+        const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
+        item->setPos(pos);
+        m_lastBulletCells.insert(bullet, bullet->cell());
+    }
+
+    for (const Bullet* bullet : m_previousBullets) {
+        if (!currentBullets.contains(bullet)) {
+            const QPoint cell = m_lastBulletCells.value(bullet, QPoint(-1, -1));
+            if (map && map->isInside(cell))
+                m_explosions.append(Explosion{cell, 12});
+            m_lastBulletCells.remove(bullet);
+        }
+    }
+
+    auto it = m_bulletItems.begin();
+    while (it != m_bulletItems.end()) {
+        if (!currentBullets.contains(it.key())) {
+            QGraphicsItem* item = it.value();
+            m_scene->removeItem(item);
+            delete item;
+            it = m_bulletItems.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    auto cellIt = m_lastBulletCells.begin();
+    while (cellIt != m_lastBulletCells.end()) {
+        if (!currentBullets.contains(cellIt.key()))
+            cellIt = m_lastBulletCells.erase(cellIt);
         else
-            pos *= tileSize;
-        m_scene->addRect(QRectF(pos, QSizeF(tileSize / 4, tileSize / 4)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+            ++cellIt;
+    }
+
+    m_previousBullets = currentBullets;
+}
+
+void Renderer::updateHud(const Game& game)
+{
+    if (!m_scene)
+        return;
+
+    if (!m_hudItem) {
+        m_hudItem = m_scene->addText(QString());
+        m_hudItem->setDefaultTextColor(Qt::white);
+        QFont font = m_hudItem->font();
+        font.setPointSize(16);
+        m_hudItem->setFont(font);
+        m_hudItem->setZValue(100);
+        m_hudItem->setPos(10, 10);
+    }
+
+    const int lives = game.state().remainingLives();
+    const int enemyCount = game.state().aliveEnemies();
+
+    const QString text = QStringLiteral("LIVES: %1\nENEMIES: %2")
+                             .arg(lives)
+                             .arg(enemyCount);
+
+    if (m_hudItem->toPlainText() != text)
+        m_hudItem->setPlainText(text);
+}
+
+void Renderer::updateBaseBlinking(const Game& game)
+{
+    const Base* base = game.base();
+    const Map* map = game.map();
+
+    if (!base || !map) {
+        m_baseBlinking = false;
+        m_baseBlinkCounter = 0;
+        m_lastBaseHealth = -1;
+        return;
+    }
+
+    const QPoint baseCell = base->cell();
+    const bool baseTileExists = map->isInside(baseCell) && map->tile(baseCell).type == TileType::Base;
+    const int currentHealth = base->health();
+    const bool baseDestroyed = game.state().isBaseDestroyed() || base->isDestroyed();
+
+    if (!baseTileExists || baseDestroyed) {
+        m_baseBlinking = false;
+        m_baseBlinkCounter = 0;
+        m_lastBaseHealth = currentHealth;
+        return;
+    }
+
+    if (m_lastBaseHealth != -1 && currentHealth < m_lastBaseHealth)
+        m_baseBlinking = true;
+
+    if (!m_baseBlinking) {
+        m_baseBlinkCounter = 0;
+    } else {
+        ++m_baseBlinkCounter;
+    }
+
+    m_lastBaseHealth = currentHealth;
+}
+
+void Renderer::initializeMap(const Game& game)
+{
+    const Map* map = game.map();
+    if (m_cachedMap != map) {
+        clearMapLayer();
+        m_cachedMap = map;
+        drawMap(game);
+    }
+}
+
+void Renderer::clearMapLayer()
+{
+    for (QGraphicsItem* item : m_mapItems) {
+        m_scene->removeItem(item);
+        delete item;
+    }
+    m_mapItems.clear();
+}
+
+qreal Renderer::tileSize() const
+{
+    return static_cast<qreal>(m_camera ? m_camera->tileSize() : TILE_SIZE);
+}
+
+void Renderer::updateExplosions()
+{
+    for (Explosion& explosion : m_explosions)
+        --explosion.ttlFrames;
+
+    auto it = std::remove_if(m_explosions.begin(), m_explosions.end(), [](const Explosion& e) { return e.ttlFrames <= 0; });
+    m_explosions.erase(it, m_explosions.end());
+
+    for (QGraphicsRectItem* item : m_explosionItems) {
+        m_scene->removeItem(item);
+        delete item;
+    }
+    m_explosionItems.clear();
+
+    const qreal size = tileSize();
+    const qreal explosionSize = size * 0.7;
+    const QPointF offset((size - explosionSize) / 2.0, (size - explosionSize) / 2.0);
+    const QBrush brush(QColor(255, 140, 0));
+
+    for (const Explosion& explosion : std::as_const(m_explosions)) {
+        const QPointF pos = QPointF(explosion.cell) * size + offset;
+        QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(explosionSize, explosionSize)), QPen(Qt::NoPen), brush);
+        item->setZValue(25);
+        m_explosionItems.append(item);
     }
 }

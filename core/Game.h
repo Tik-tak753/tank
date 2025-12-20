@@ -3,23 +3,23 @@
 
 #include <QObject>
 #include <QList>
+#include <QPoint>
+#include <vector>
 #include <memory>
 
 #include "core/GameState.h"
 #include "core/GameRules.h"
-#include "core/GameLoop.h"
 
 class Tank;
 class PlayerTank;
 class EnemyTank;
 class Bullet;
-class Renderer;
-class CollisionSystem;
-class PhysicsSystem;
 class InputSystem;
 class LevelLoader;
 class Map;
 class Base;
+class PhysicsSystem;
+class CollisionSystem;
 
 /*
  * Game — центральний фасад, який зшиває усі підсистеми разом.
@@ -35,13 +35,10 @@ public:
 
     // Підготовка базового рівня та створення сутностей
     void initialize();
+    void restart();
 
-    // Запуск ігрового циклу
-    void start();
-    void stop();
-
-    // Крок оновлення (викликається GameLoop)
-    void update();
+    // Крок оновлення (викликається MainWindow)
+    void update(int deltaMs);
 
     const GameState& state() const { return m_state; }
     GameRules& rules() { return m_rules; }
@@ -52,28 +49,41 @@ public:
     Map* map() const { return m_map.get(); }
     Base* base() const { return m_base.get(); }
 
-    // Для інтеграції з UI
-    void setRenderer(Renderer* renderer);
     void setInputSystem(InputSystem* input);
+    PlayerTank* player() const { return m_player; }
 
 private:
+    void clearWorld();
+    void updateTanks(int deltaMs);
+    void spawnPendingBullets();
+    void removeDeadTanks();
+    void updateEnemySpawning(int deltaMs);
+    bool trySpawnEnemy();
+    bool canSpawnEnemyAt(const QPoint& cell) const;
+
     GameRules m_rules;
     GameState m_state;
-    GameLoop m_loop;
 
     std::unique_ptr<Map> m_map;
     std::unique_ptr<Base> m_base;
+    std::unique_ptr<LevelLoader> m_levelLoader;
 
     QList<Tank*> m_tanks;
     QList<EnemyTank*> m_enemies;
     QList<Bullet*> m_bullets;
+    std::vector<std::unique_ptr<Bullet>> m_pendingBullets;
 
-    Renderer* m_renderer = nullptr;
-    std::unique_ptr<CollisionSystem> m_collisionSystem;
-    std::unique_ptr<PhysicsSystem> m_physicsSystem;
     InputSystem* m_inputSystem = nullptr;
+    PlayerTank* m_player = nullptr;
 
-    std::unique_ptr<LevelLoader> m_levelLoader;
+    std::unique_ptr<PhysicsSystem> m_physicsSystem;
+    std::unique_ptr<CollisionSystem> m_collisionSystem;
+
+    QList<QPoint> m_enemySpawnPoints;
+    qsizetype m_nextSpawnIndex = 0;
+    int m_maxAliveEnemies = 0;
+    int m_enemySpawnCooldownMs = 0;
+    int m_enemyRespawnDelayMs = 800;
 };
 
 #endif // GAME_H

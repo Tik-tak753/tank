@@ -1,6 +1,21 @@
 #include "gameplay/PlayerTank.h"
 
 #include "systems/InputSystem.h"
+#include "world/Map.h"
+#include <optional>
+
+namespace {
+QPoint directionDelta(Direction dir)
+{
+    switch (dir) {
+    case Direction::Up:    return QPoint(0, -1);
+    case Direction::Down:  return QPoint(0, 1);
+    case Direction::Left:  return QPoint(-1, 0);
+    case Direction::Right: return QPoint(1, 0);
+    }
+    return QPoint(0, 0);
+}
+}
 
 PlayerTank::PlayerTank(const QPoint& cell)
     : Tank(cell)
@@ -14,24 +29,47 @@ void PlayerTank::setInput(InputSystem* input)
     m_input = input;
 }
 
+void PlayerTank::setMap(const Map* map)
+{
+    m_map = map;
+}
+
 void PlayerTank::update()
 {
-    Tank::update();
+    updateWithDelta(16);
+}
+
+void PlayerTank::updateWithDelta(int deltaMs)
+{
+    Tank::updateWithDelta(deltaMs);
+
+    if (isDestroyed())
+        return;
 
     if (!m_input)
         return;
 
-    const Direction desired = m_input->currentDirection();
-    setDirection(desired);
+    const std::optional<Direction> desired = m_input->currentDirection();
+    if (!desired.has_value())
+        return;
 
-    QPoint delta(0, 0);
-    switch (desired) {
-    case Direction::Up:    delta.setY(-1); break;
-    case Direction::Down:  delta.setY(1);  break;
-    case Direction::Left:  delta.setX(-1); break;
-    case Direction::Right: delta.setX(1);  break;
+    setDirection(*desired);
+
+    // Підтримуємо стабільний рух по тайлах навіть за різного FPS
+    const float deltaSeconds = deltaMs / 1000.0f;
+    m_moveAccumulator += speed() * deltaSeconds;
+
+    const QPoint step = directionDelta(*desired);
+    while (m_moveAccumulator >= 1.0f) {
+        const QPoint nextCell = cell() + step;
+        if (m_map && !m_map->isWalkable(nextCell)) {
+            m_moveAccumulator = 0.0f; // блокуємо накопичення в глухих кутах
+            break;
+        }
+
+        setCell(nextCell);
+        m_moveAccumulator -= 1.0f;
     }
-    setCell(cell() + delta);
 
     if (m_input->consumeFire())
         requestFire();

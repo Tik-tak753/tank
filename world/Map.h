@@ -4,6 +4,7 @@
 #include <QPoint>
 #include <QSize>
 #include <QVector>
+#include <QtGlobal>
 
 #include "world/Tile.h"
 
@@ -15,6 +16,7 @@ class Map
 {
 public:
     Map(int width, int height);
+    explicit Map(const QSize& size) : Map(size.width(), size.height()) {}
 
     QSize size() const { return m_size; }
     bool isInside(const QPoint& cell) const;
@@ -23,10 +25,10 @@ public:
     bool isWalkable(const QPoint& cell) const;
 
 private:
-    int index(const QPoint& cell) const;
-
     QSize m_size;
-    QVector<Tile> m_tiles;
+    qsizetype m_width = 0;
+    qsizetype m_height = 0;
+    QVector<QVector<Tile>> m_tiles; // m_tiles[y][x]
 };
 
 #endif // MAP_H

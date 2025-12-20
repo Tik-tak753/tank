@@ -1,8 +1,20 @@
 #include "gameplay/WeaponSystem.h"
 
-#include <QtGlobal>
-
 #include "gameplay/Bullet.h"
+
+namespace {
+QPoint directionDelta(Direction dir)
+{
+    switch (dir) {
+    case Direction::Up:    return QPoint(0, -1);
+    case Direction::Down:  return QPoint(0, 1);
+    case Direction::Left:  return QPoint(-1, 0);
+    case Direction::Right: return QPoint(1, 0);
+    }
+
+    return QPoint(0, 0);
+}
+} // namespace
 
 void WeaponSystem::tick(int deltaMs)
 {
@@ -15,11 +27,11 @@ bool WeaponSystem::canShoot() const
     return m_cooldownMs == 0;
 }
 
-Bullet* WeaponSystem::fire(const QPointF& pos, Direction dir)
+std::unique_ptr<Bullet> WeaponSystem::fire(const QPoint& cell, Direction dir, const Tank* owner)
 {
     if (!canShoot())
         return nullptr;
 
     m_cooldownMs = m_reloadMs;
-    return new Bullet(pos, dir, m_bulletSpeed);
+    return std::make_unique<Bullet>(cell + directionDelta(dir), dir, owner);
 }

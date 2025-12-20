@@ -1,26 +1,52 @@
 #include "gameplay/Bullet.h"
 
-Bullet::Bullet(const QPointF& pos, Direction dir, float speed)
-    : m_position(pos),
+namespace {
+constexpr qsizetype kStepIntervalMs = 120;
+
+QPoint stepDelta(Direction dir)
+{
+    switch (dir) {
+    case Direction::Up:    return QPoint(0, -1);
+    case Direction::Down:  return QPoint(0, 1);
+    case Direction::Left:  return QPoint(-1, 0);
+    case Direction::Right: return QPoint(1, 0);
+    }
+
+    return QPoint(0, 0);
+}
+} // namespace
+
+Bullet::Bullet(const QPoint& cell, Direction dir, const Tank* owner)
+    : m_cell(cell),
       m_direction(dir),
-      m_speed(speed)
+      m_owner(owner)
 {
 }
 
 void Bullet::update(int deltaMs)
 {
-    m_elapsedMs += deltaMs;
-    QPointF delta(0, 0);
-    switch (m_direction) {
-    case Direction::Up:    delta.setY(-m_speed); break;
-    case Direction::Down:  delta.setY(m_speed);  break;
-    case Direction::Left:  delta.setX(-m_speed); break;
-    case Direction::Right: delta.setX(m_speed);  break;
-    }
-    m_position += delta;
+    if (!m_alive)
+        return;
+
+    m_elapsedMs += static_cast<qsizetype>(deltaMs);
+    if (m_elapsedMs < kStepIntervalMs)
+        return;
+
+    m_elapsedMs -= kStepIntervalMs;
+    m_cell += stepDelta(m_direction);
 }
 
-bool Bullet::isExpired() const
+QPoint Bullet::directionDelta() const
 {
-    return m_elapsedMs >= m_lifetimeMs;
+    return stepDelta(m_direction);
+}
+
+QPoint Bullet::nextCell() const
+{
+    return m_cell + directionDelta();
+}
+
+void Bullet::destroy()
+{
+    m_alive = false;
 }

@@ -2,8 +2,10 @@
 #define TANK_H
 
 #include <QPoint>
+#include <memory>
 
 #include "gameplay/Direction.h"
+#include "gameplay/GameObject.h"
 #include "gameplay/WeaponSystem.h"
 #include "gameplay/HealthSystem.h"
 
@@ -13,14 +15,18 @@ class Bullet;
  * Tank — базовий клас, що описує спільні властивості танків
  * (позиція, напрямок, здоров'я, зброя).
  */
-class Tank
+class Tank : public GameObject
 {
 public:
     explicit Tank(const QPoint& cell);
     virtual ~Tank() = default;
 
-    QPoint cell() const { return m_cell; }
-    void setCell(const QPoint& cell) { m_cell = cell; }
+    bool isDestroyed() const { return m_destroyed; }
+    bool isDestructionFinished() const { return m_destroyed && m_destructionTimerMs <= 0; }
+    void markDestroyed();
+
+    QPoint cell() const { return GameObject::cell(); }
+    void setCell(const QPoint& cell) { GameObject::setCell(cell); }
 
     Direction direction() const { return m_direction; }
     void setDirection(Direction dir) { m_direction = dir; }
@@ -34,10 +40,10 @@ public:
     void requestFire() { m_fireRequested = true; }
 
     virtual void update();
-    virtual Bullet* tryShoot();
+    virtual void updateWithDelta(int deltaMs);
+    virtual std::unique_ptr<Bullet> tryShoot();
 
 protected:
-    QPoint m_cell;
     Direction m_direction = Direction::Up;
     float m_speed = 1.0f;
 
@@ -45,6 +51,9 @@ protected:
 
     WeaponSystem m_weapon;
     HealthSystem m_health;
-};
+
+    bool m_destroyed = false;
+    int m_destructionTimerMs = 0;
+}; 
 
 #endif // TANK_H
