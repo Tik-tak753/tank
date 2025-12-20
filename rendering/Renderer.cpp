@@ -112,7 +112,13 @@ void Renderer::syncTanks(const Game& game)
     const qreal size = tileSize();
     const qreal barrelLength = size * 0.6;
     const qreal barrelThickness = size * 0.2;
+    const QList<Tank*> tanks = game.tanks();
     QSet<const Tank*> seen;
+    seen.reserve(tanks.size());
+    for (Tank* tank : tanks) {
+        if (tank)
+            seen.insert(tank);
+    }
 
     auto barrelRectForDirection = [&](Direction dir) {
         switch (dir) {
@@ -162,15 +168,13 @@ void Renderer::syncTanks(const Game& game)
         }
     };
 
-    for (Tank* tank : game.tanks()) {
+    for (Tank* tank : tanks) {
         if (!tank)
             continue;
 
 #ifdef QT_DEBUG
         Q_ASSERT(Tank::s_aliveTanks.contains(tank));
 #endif
-        seen.insert(tank);
-
         QGraphicsRectItem* item = m_tankItems.value(tank, nullptr);
         if (!item) {
             item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(size, size)), QPen(Qt::black), QBrush(QColor(40, 160, 32)));
