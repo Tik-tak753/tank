@@ -14,13 +14,22 @@ enum class TileType {
     Base        // база гравця
 };
 
-struct Tile
+class Tile
 {
+public:
     TileType type = TileType::Empty;
     bool destructible = false;
     bool walkable = true;
 
+    int damage() const { return m_damage; }
+    int maxDamage() const;
+    void takeDamage(int amount);
+    bool isDestroyed() const;
+
     bool isSteel() const { return type == TileType::Steel; }
+
+private:
+    int m_damage = 0;        // використовується для Brick / Steel
 };
 
 // Утиліти створення стін для зручності
