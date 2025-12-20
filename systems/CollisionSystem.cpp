@@ -13,6 +13,37 @@
 #include "world/Tile.h"
 #include "enums/enums.h"
 
+namespace {
+TileCollisionResult resolveTileCollision(const TileType type)
+{
+    TileCollisionResult result;
+
+    switch (type) {
+    case TileType::Empty:
+        break;
+
+    case TileType::Brick:
+        qDebug() << "[COLLISION] Bullet ↔ Brick → tile destroyed";
+        result.destroyBullet = true;
+        result.destroyTile = true;
+        break;
+
+    case TileType::Steel:
+        qDebug() << "[COLLISION] Bullet ↔ Steel → bullet destroyed, tile intact";
+        result.destroyBullet = true;
+        break;
+
+    case TileType::Base:
+        qDebug() << "[COLLISION] Bullet ↔ Base → base damaged";
+        result.destroyBullet = true;
+        result.damageBase = true;
+        break;
+    }
+
+    return result;
+}
+} // namespace
+
 void CollisionSystem::resolve(
     Map& map,
     QList<Tank*>& tanks,
@@ -34,38 +65,22 @@ void CollisionSystem::resolve(
             destroyBullet = true;
         } else {
             const Tile target = map.tile(cell);
+            TileCollisionResult tileResult = resolveTileCollision(target.type);
 
-            if (target.isSteel() || target.type == TileType::Steel) {
-                qDebug() << "[BULLET] Hit STEEL → bullet destroyed, tile intact at"
-                         << QStringLiteral("(%1, %2)").arg(cell.x()).arg(cell.y());
-                destroyBullet = true;
-            } else {
-                switch (target.type) {
-                case TileType::Empty:
-                    break;
+            if (tileResult.destroyTile)
+                map.setTile(cell, TileFactory::empty());
 
-                case TileType::Brick:
+            if (tileResult.damageBase && base && !state.isBaseDestroyed()) {
+                base->takeDamage();
+
+                if (base->isDestroyed()) {
+                    state.setBaseDestroyed();
                     map.setTile(cell, TileFactory::empty());
-                    destroyBullet = true;
-                    break;
-
-                case TileType::Base:
-                    destroyBullet = true;
-
-                    if (base && !state.isBaseDestroyed()) {
-                        base->takeDamage();
-
-                        if (base->isDestroyed()) {
-                            state.setBaseDestroyed();
-                            map.setTile(cell, TileFactory::empty());
-                        }
-                    }
-                    break;
-
-                case TileType::Steel:
-                    break;
                 }
             }
+
+            if (tileResult.destroyBullet)
+                destroyBullet = true;
         }
 
         // ---- Tank collision ----
