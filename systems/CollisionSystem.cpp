@@ -5,6 +5,7 @@
 #include "core/GameState.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/EnemyTank.h"
+#include "gameplay/PlayerTank.h"
 #include "gameplay/Tank.h"
 #include "world/Base.h"
 #include "world/Map.h"
@@ -69,8 +70,20 @@ void CollisionSystem::resolve(
                 if (tank->isDestroyed())
                     continue;
 
-                if (tank == bullet->owner())
+                Tank* owner = bullet->owner();
+
+                if (tank == owner)
                     continue;
+
+                if (owner) {
+                    const bool ownerIsPlayer = dynamic_cast<PlayerTank*>(owner);
+                    const bool ownerIsEnemy = dynamic_cast<EnemyTank*>(owner);
+                    const bool targetIsPlayer = dynamic_cast<PlayerTank*>(tank);
+                    const bool targetIsEnemy = dynamic_cast<EnemyTank*>(tank);
+
+                    if ((ownerIsPlayer && targetIsPlayer) || (ownerIsEnemy && targetIsEnemy))
+                        continue;
+                }
 
                 if (tank->cell() == cell) {
                     tank->health().takeDamage(1);
