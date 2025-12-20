@@ -5,7 +5,7 @@
 #include <QtGlobal>
 
 #include "gameplay/Direction.h"
-
+#include "enums/enums.h"
 class Tank;
 
 /*
@@ -14,24 +14,27 @@ class Tank;
 class Bullet
 {
 public:
-    Bullet(const QPoint& cell, Direction dir, const Tank* owner);
+    Bullet(const QPoint& cell, Direction dir, const TankType type);
 
     QPoint cell() const { return m_cell; }
     Direction direction() const { return m_direction; }
     QPoint directionDelta() const;
     QPoint nextCell() const;
     bool isAlive() const { return m_alive; }
-    const Tank* owner() const { return m_owner; }
+    TankType type() const { return m_ownerType; }
 
     void update(int deltaMs);
-    void destroy();
+    void destroy(bool spawnExplosion = true);
+    bool spawnExplosionOnDestroy() const { return m_spawnExplosionOnDestroy; }
 
 private:
     QPoint m_cell;
     Direction m_direction;
-    const Tank* m_owner = nullptr;
+    //const Tank* m_owner = nullptr;
+    const TankType m_ownerType;
     qsizetype m_elapsedMs = 0;
     bool m_alive = true;
+    bool m_spawnExplosionOnDestroy = true;
 };
 
 #endif // BULLET_H

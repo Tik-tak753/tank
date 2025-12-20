@@ -71,6 +71,15 @@ void Game::setInputSystem(InputSystem* input)
 
 void Game::update(int deltaMs)
 {
+    // Прибираємо всі снаряди, що втратили життєздатність у попередніх тиках
+    for (qsizetype i = m_bullets.size(); i > 0; --i) {
+        Bullet* bullet = m_bullets.at(i - 1);
+        if (bullet && !bullet->isAlive()) {
+            delete bullet;
+            m_bullets.removeAt(i - 1);
+        }
+    }
+
     if (m_state.isBaseDestroyed())
         return;
 
@@ -90,14 +99,6 @@ void Game::update(int deltaMs)
 
     removeDeadTanks();
     updateEnemySpawning(deltaMs);
-    // Прибираємо всі снаряди, що втратили життєздатність
-    for (qsizetype i = m_bullets.size(); i > 0; --i) {
-        Bullet* bullet = m_bullets.at(i - 1);
-        if (bullet && !bullet->isAlive()) {
-            delete bullet;
-            m_bullets.removeAt(i - 1);
-        }
-    }
 }
 
 void Game::clearWorld()

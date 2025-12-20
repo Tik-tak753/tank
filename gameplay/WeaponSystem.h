@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "gameplay/Direction.h"
+#include "enums/enums.h"
 
 class Bullet;
 class Tank;
@@ -20,7 +21,7 @@ public:
     void tick(int deltaMs);
 
     bool canShoot() const;
-    std::unique_ptr<Bullet> fire(const QPoint& cell, Direction dir, const Tank* owner);
+    std::unique_ptr<Bullet> fire(const QPoint& cell, Direction dir, const TankType owner);
 
 private:
     int m_reloadMs = 500;

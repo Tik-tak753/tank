@@ -5,10 +5,12 @@
 #include "core/GameState.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/EnemyTank.h"
+#include "gameplay/PlayerTank.h"
 #include "gameplay/Tank.h"
 #include "world/Base.h"
 #include "world/Map.h"
 #include "world/Tile.h"
+#include "enums/enums.h"
 
 void CollisionSystem::resolve(
     Map& map,
@@ -24,6 +26,7 @@ void CollisionSystem::resolve(
 
         const QPoint cell = bullet->cell();
         bool destroyBullet = false;
+        bool spawnBulletExplosion = true;
 
         // ---- Out of bounds ----
         if (!map.isInside(cell)) {
@@ -68,8 +71,20 @@ void CollisionSystem::resolve(
                 if (tank->isDestroyed())
                     continue;
 
-                if (tank == bullet->owner())
+                auto owner = bullet->type();
+
+                if (tank->getType() == owner)
                     continue;
+
+                if (owner) {
+                    const bool ownerIsPlayer = owner == TankType::Player;
+                    const bool ownerIsEnemy = owner == TankType::Enemy;
+                    const bool targetIsPlayer = tank->getType() == TankType::Player;
+                    const bool targetIsEnemy = tank->getType() == TankType::Enemy;
+
+                    if ((ownerIsPlayer && targetIsPlayer) || (ownerIsEnemy && targetIsEnemy))
+                        continue;
+                }
 
                 if (tank->cell() == cell) {
                     tank->health().takeDamage(1);
@@ -80,12 +95,13 @@ void CollisionSystem::resolve(
                     }
 
                     destroyBullet = true;
+                    spawnBulletExplosion = false;
                     break;
                 }
             }
         }
 
         if (destroyBullet)
-            bullet->destroy();
+            bullet->destroy(spawnBulletExplosion);
     }
 }

@@ -16,10 +16,10 @@ QPoint stepDelta(Direction dir)
 }
 } // namespace
 
-Bullet::Bullet(const QPoint& cell, Direction dir, const Tank* owner)
+Bullet::Bullet(const QPoint& cell, Direction dir, const TankType type)
     : m_cell(cell),
       m_direction(dir),
-      m_owner(owner)
+      m_ownerType(type)
 {
 }
 
@@ -46,7 +46,8 @@ QPoint Bullet::nextCell() const
     return m_cell + directionDelta();
 }
 
-void Bullet::destroy()
+void Bullet::destroy(bool spawnExplosion)
 {
+    m_spawnExplosionOnDestroy = spawnExplosion;
     m_alive = false;
 }
