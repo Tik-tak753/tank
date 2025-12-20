@@ -158,8 +158,14 @@ void Game::removeDeadTanks()
 #ifdef QT_DEBUG
         Q_ASSERT(!m_tanks.contains(nullptr));
 #endif
-        if (!tank->health().isAlive() && !tank->isDestroyed())
+        if (!tank->health().isAlive() && !tank->isDestroyed()) {
             tank->markDestroyed();
+            if (auto* enemy = dynamic_cast<EnemyTank*>(tank)) {
+                m_enemies.removeOne(enemy);
+                m_state.registerEnemyDestroyed();
+                enemyDestroyed = true;
+            }
+        }
 
         if (!tank->isDestructionFinished())
             continue;
@@ -169,10 +175,6 @@ void Game::removeDeadTanks()
             m_state.registerPlayerLostLife();
             if (m_state.remainingLives() > 0)
                 m_playerRespawnCooldownMs = m_playerRespawnDelayMs;
-        } else if (dynamic_cast<EnemyTank*>(tank)) {
-            m_enemies.removeOne(static_cast<EnemyTank*>(tank));
-            m_state.registerEnemyDestroyed();
-            enemyDestroyed = true;
         }
 
 #ifdef QT_DEBUG
