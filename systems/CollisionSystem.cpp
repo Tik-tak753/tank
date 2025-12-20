@@ -34,38 +34,44 @@ void CollisionSystem::resolve(
             destroyBullet = true;
         } else {
             const Tile target = map.tile(cell);
+            TileCollisionResult tileResult;
 
-            if (target.isSteel() || target.type == TileType::Steel) {
-                qDebug() << "[BULLET] Hit STEEL → bullet destroyed, tile intact at"
-                         << QStringLiteral("(%1, %2)").arg(cell.x()).arg(cell.y());
-                destroyBullet = true;
-            } else {
-                switch (target.type) {
-                case TileType::Empty:
-                    break;
+            switch (target.type) {
+            case TileType::Empty:
+                break;
 
-                case TileType::Brick:
+            case TileType::Brick:
+                qDebug() << "[COLLISION] Bullet ↔ Brick → tile destroyed";
+                tileResult.destroyBullet = true;
+                tileResult.destroyTile = true;
+                break;
+
+            case TileType::Steel:
+                qDebug() << "[COLLISION] Bullet ↔ Steel → bullet destroyed, tile intact";
+                tileResult.destroyBullet = true;
+                break;
+
+            case TileType::Base:
+                qDebug() << "[COLLISION] Bullet ↔ Base → base damaged";
+                tileResult.destroyBullet = true;
+                tileResult.damageBase = true;
+                break;
+            }
+
+            if (tileResult.destroyTile)
+                map.setTile(cell, TileFactory::empty());
+
+            if (tileResult.damageBase && base) {
+                base->takeDamage();
+
+                if (base->isDestroyed() && !state.isBaseDestroyed()) {
+                    state.setBaseDestroyed();
                     map.setTile(cell, TileFactory::empty());
-                    destroyBullet = true;
-                    break;
-
-                case TileType::Base:
-                    destroyBullet = true;
-
-                    if (base && !state.isBaseDestroyed()) {
-                        base->takeDamage();
-
-                        if (base->isDestroyed()) {
-                            state.setBaseDestroyed();
-                            map.setTile(cell, TileFactory::empty());
-                        }
-                    }
-                    break;
-
-                case TileType::Steel:
-                    break;
                 }
             }
+
+            if (tileResult.destroyBullet)
+                destroyBullet = true;
         }
 
         // ---- Tank collision ----
