@@ -55,11 +55,16 @@ public:
 private:
     void clearWorld();
     void updateTanks(int deltaMs);
+    void updatePlayerRespawn(int deltaMs);
     void spawnPendingBullets();
     void cleanupDestroyed(bool removeBullets = true);
+    void evaluateSessionState();
+    void trySpawnPlayer();
     void updateEnemySpawning(int deltaMs);
     bool trySpawnEnemy();
     bool canSpawnEnemyAt(const QPoint& cell) const;
+    bool canSpawnPlayerAt(const QPoint& cell) const;
+    void setSessionState(GameSessionState state);
 
     GameRules m_rules;
     GameState m_state;
@@ -80,10 +85,13 @@ private:
     std::unique_ptr<CollisionSystem> m_collisionSystem;
 
     QList<QPoint> m_enemySpawnPoints;
+    QPoint m_playerSpawnCell;
     qsizetype m_nextSpawnIndex = 0;
     int m_maxAliveEnemies = 0;
     int m_enemySpawnCooldownMs = 0;
     int m_enemyRespawnDelayMs = 800;
+    int m_playerRespawnDelayMs = 800;
+    int m_playerRespawnTimerMs = 0;
 };
 
 #endif // GAME_H

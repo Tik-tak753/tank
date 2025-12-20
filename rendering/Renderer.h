@@ -6,6 +6,7 @@
 #include <QPoint>
 #include <QPointF>
 #include <QSet>
+#include <QString>
 
 class QGraphicsScene;
 class QGraphicsItem;
@@ -69,6 +70,7 @@ private:
     QHash<const Bullet*, QPoint> m_lastBulletCells;
     QHash<const Bullet*, bool> m_lastBulletExplosions;
     QSet<const Tank*> m_destroyedTanks;
+    QString m_lastHudStatus;
 };
 
 #endif // RENDERER_H
