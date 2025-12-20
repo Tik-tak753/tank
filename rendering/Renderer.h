@@ -56,7 +56,7 @@ private:
     QList<QGraphicsItem*> m_mapItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
-    QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
+    QHash<QPoint, QGraphicsRectItem*> m_bulletItems;
     QList<QGraphicsRectItem*> m_explosionItems;
     QGraphicsTextItem* m_hudLivesItem = nullptr;
     QGraphicsTextItem* m_hudEnemiesItem = nullptr;
@@ -66,12 +66,9 @@ private:
     int m_lastBaseHealth = -1;
 
     QList<Explosion> m_explosions;
-    QSet<const Bullet*> m_previousBullets;
-    QHash<const Bullet*, QPoint> m_lastBulletCells;
+    QSet<QPoint> m_previousBulletCells;
+    QHash<QPoint, bool> m_previousBulletExplosionFlags;
     QSet<const Tank*> m_destroyedTanks;
-#ifdef QT_DEBUG
-    QSet<const Bullet*> m_deletedBulletsDebug;
-#endif
 };
 
 #endif // RENDERER_H
