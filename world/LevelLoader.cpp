@@ -138,7 +138,7 @@ LevelData LevelLoader::loadDefaultLevel(const GameRules& rules) const
 
             if (border) { row.append('S'); continue; }
             if (cell == base) { row.append('A'); continue; }
-            if (x == baseX - 1 && y == baseY) { row.append('P'); continue; }
+            if (x == baseX - 2 && y == baseY) { row.append('P'); continue; }
             if (y == 1 && (x == 1 || x == centerX || x == mapWidth - 2)) { row.append('E'); continue; }
             if (baseShield) { row.append('#'); continue; }
             if (brickRow) { row.append('#'); continue; }
