@@ -150,12 +150,12 @@ void Renderer::syncMapTiles(const Game& game)
         const Tile tile = map->tile(cell);
 
         if (tile.type == TileType::Empty) {
+            it = m_tileItems.erase(it);
             m_scene->removeItem(item);
 #ifdef QT_DEBUG
             debugMarkDeleted(item);
 #endif
             delete item;
-            it = m_tileItems.erase(it);
             continue;
         }
 
@@ -463,15 +463,9 @@ void Renderer::updateBaseBlinking(const Game& game)
 void Renderer::initializeMap(const Game& game)
 {
     const Map* map = game.map();
-    if (m_cachedMap != map) {
-        clearMapLayer();
-        m_cachedMap = map;
-        drawMap(game);
-    }
-}
+    if (m_cachedMap == map)
+        return;
 
-void Renderer::clearMapLayer()
-{
 #ifdef QT_DEBUG
     auto debugMarkDeleted = [&](const QGraphicsItem* it) {
         Q_ASSERT(it);
@@ -479,6 +473,7 @@ void Renderer::clearMapLayer()
         m_deletedItemsDebug.insert(it);
     };
 #endif
+
     for (QGraphicsRectItem* item : std::as_const(m_tileItems)) {
         m_scene->removeItem(item);
 #ifdef QT_DEBUG
@@ -487,6 +482,9 @@ void Renderer::clearMapLayer()
         delete item;
     }
     m_tileItems.clear();
+
+    m_cachedMap = map;
+    drawMap(game);
 }
 
 qreal Renderer::tileSize() const
