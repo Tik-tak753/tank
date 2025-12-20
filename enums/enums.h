@@ -7,11 +7,4 @@ enum TankType
     Enemy
 };
 
-struct TileCollisionResult
-{
-    bool destroyBullet = false;
-    bool destroyTile = false;
-    bool damageBase = false;
-};
-
 #endif // ENUMS_H

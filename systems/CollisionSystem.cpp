@@ -1,8 +1,5 @@
 #include "systems/CollisionSystem.h"
 
-#include <QDebug>
-#include <QString>
-#include <QStringList>
 #include <QtGlobal>
 
 #include "core/GameState.h"
@@ -14,63 +11,6 @@
 #include "world/Map.h"
 #include "world/Tile.h"
 #include "enums/enums.h"
-
-namespace {
-
-TileCollisionResult resolveTileCollision(const TileType type)
-{
-    switch (type) {
-    case TileType::Empty:
-        return {};
-
-    case TileType::Brick:
-        return {true, true, false};
-
-    case TileType::Steel:
-        return {true, false, false};
-
-    case TileType::Base:
-        return {true, false, true};
-    }
-
-    Q_UNREACHABLE();
-}
-
-QString tileTypeToString(const TileType type)
-{
-    switch (type) {
-    case TileType::Empty:
-        return "Empty";
-    case TileType::Brick:
-        return "Brick";
-    case TileType::Steel:
-        return "Steel";
-    case TileType::Base:
-        return "Base";
-    }
-
-    Q_UNREACHABLE();
-}
-
-QString formatTileCollisionLog(const TileType type, const TileCollisionResult& result)
-{
-    QStringList effects;
-
-    if (result.destroyBullet)
-        effects << "bullet destroyed";
-
-    if (result.destroyTile)
-        effects << "tile destroyed";
-
-    if (result.damageBase)
-        effects << "base damaged";
-
-    const QString effectText = effects.isEmpty() ? "no effect" : effects.join(", ");
-
-    return QString("[COLLISION] Bullet ↔ %1 → %2").arg(tileTypeToString(type), effectText);
-}
-
-} // namespace
 
 void CollisionSystem::resolve(
     Map& map,
@@ -88,30 +28,7 @@ void CollisionSystem::resolve(
         bool destroyBullet = false;
         bool spawnBulletExplosion = true;
 
-        // ---- Out of bounds ----
-        if (!map.isInside(cell)) {
-            destroyBullet = true;
-        } else {
-            const Tile target = map.tile(cell);
-            const TileCollisionResult tileResult = resolveTileCollision(target.type);
-
-            qDebug() << formatTileCollisionLog(target.type, tileResult);
-
-            if (tileResult.destroyTile)
-                map.setTile(cell, TileFactory::empty());
-
-            if (tileResult.damageBase && base) {
-                base->takeDamage();
-
-                if (base->isDestroyed() && !state.isBaseDestroyed()) {
-                    state.setBaseDestroyed();
-                    map.setTile(cell, TileFactory::empty());
-                }
-            }
-
-            if (tileResult.destroyBullet)
-                destroyBullet = true;
-        }
+        destroyBullet = handleBulletMapCollision(*bullet, map, base, state, spawnBulletExplosion);
 
         // ---- Tank collision ----
         if (!destroyBullet) {
@@ -155,4 +72,63 @@ void CollisionSystem::resolve(
         if (destroyBullet)
             bullet->destroy(spawnBulletExplosion);
     }
+}
+
+bool CollisionSystem::handleBulletMapCollision(
+    Bullet& bullet,
+    Map& map,
+    Base* base,
+    GameState& state,
+    bool& spawnBulletExplosion)
+{
+    const QPoint cell = bullet.cell();
+
+    if (!map.isInside(cell)) {
+        return true;
+    }
+
+    Tile tile = map.tile(cell);
+
+    switch (tile.type) {
+    case TileType::Empty:
+        return false;
+
+    case TileType::Brick: {
+        tile.takeDamage(1);
+        if (tile.isDestroyed()) {
+            map.setTile(cell, TileFactory::empty());
+        } else {
+            map.setTile(cell, tile);
+        }
+        return true;
+    }
+
+    case TileType::Steel: {
+        // Сталеві плитки не руйнуються базовими снарядами.
+        if (tile.destructible) {
+            tile.takeDamage(1);
+            if (tile.isDestroyed())
+                map.setTile(cell, TileFactory::empty());
+            else
+                map.setTile(cell, tile);
+        }
+
+        return true;
+    }
+
+    case TileType::Base: {
+        if (base) {
+            base->takeDamage();
+
+            if (base->isDestroyed() && !state.isBaseDestroyed()) {
+                state.setBaseDestroyed();
+                map.setTile(cell, TileFactory::empty());
+            }
+        }
+
+        return true;
+    }
+    }
+
+    Q_UNREACHABLE();
 }
