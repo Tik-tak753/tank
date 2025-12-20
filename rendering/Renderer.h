@@ -69,6 +69,9 @@ private:
     QSet<const Bullet*> m_previousBullets;
     QHash<const Bullet*, QPoint> m_lastBulletCells;
     QSet<const Tank*> m_destroyedTanks;
+#ifdef QT_DEBUG
+    QSet<const Bullet*> m_deletedBulletsDebug;
+#endif
 };
 
 #endif // RENDERER_H
