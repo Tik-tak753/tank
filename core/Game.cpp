@@ -79,6 +79,9 @@ void Game::update(int deltaMs)
     for (qsizetype i = m_bullets.size(); i > 0; --i) {
         Bullet* bullet = m_bullets.at(i - 1);
         if (bullet && !bullet->isAlive()) {
+#ifdef QT_DEBUG
+            Q_ASSERT(Bullet::s_aliveBullets.contains(bullet));
+#endif
             delete bullet;
             m_bullets.removeAt(i - 1);
         }
