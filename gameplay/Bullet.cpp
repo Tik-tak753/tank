@@ -1,8 +1,6 @@
 #include "gameplay/Bullet.h"
 
 namespace {
-constexpr qsizetype kStepIntervalMs = 120;
-
 QPoint stepDelta(Direction dir)
 {
     switch (dir) {
@@ -16,10 +14,12 @@ QPoint stepDelta(Direction dir)
 }
 } // namespace
 
-Bullet::Bullet(const QPoint& cell, Direction dir, const TankType type)
+Bullet::Bullet(const QPoint& cell, Direction dir, const TankType type, int stepIntervalMs, bool canPierceSteel)
     : m_cell(cell),
       m_direction(dir),
-      m_ownerType(type)
+      m_ownerType(type),
+      m_stepIntervalMs(stepIntervalMs),
+      m_canPierceSteel(canPierceSteel)
 {
 }
 
@@ -29,10 +29,10 @@ void Bullet::update(int deltaMs)
         return;
 
     m_elapsedMs += static_cast<qsizetype>(deltaMs);
-    if (m_elapsedMs < kStepIntervalMs)
+    if (m_elapsedMs < m_stepIntervalMs)
         return;
 
-    m_elapsedMs -= kStepIntervalMs;
+    m_elapsedMs -= m_stepIntervalMs;
     m_cell += stepDelta(m_direction);
 }
 

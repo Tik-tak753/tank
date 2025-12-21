@@ -14,7 +14,9 @@ class Tank;
 class Bullet
 {
 public:
-    Bullet(const QPoint& cell, Direction dir, const TankType type);
+    static constexpr int kDefaultStepIntervalMs = 120;
+
+    Bullet(const QPoint& cell, Direction dir, const TankType type, int stepIntervalMs = kDefaultStepIntervalMs, bool canPierceSteel = false);
 
     QPoint cell() const { return m_cell; }
     Direction direction() const { return m_direction; }
@@ -22,6 +24,7 @@ public:
     QPoint nextCell() const;
     bool isAlive() const { return m_alive; }
     TankType type() const { return m_ownerType; }
+    bool canPierceSteel() const { return m_canPierceSteel; }
 
     void update(int deltaMs);
     void destroy(bool spawnExplosion = true);
@@ -33,8 +36,10 @@ private:
     //const Tank* m_owner = nullptr;
     const TankType m_ownerType;
     qsizetype m_elapsedMs = 0;
+    int m_stepIntervalMs = kDefaultStepIntervalMs;
     bool m_alive = true;
     bool m_spawnExplosionOnDestroy = true;
+    bool m_canPierceSteel = false;
 };
 
 #endif // BULLET_H

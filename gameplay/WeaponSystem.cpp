@@ -27,11 +27,11 @@ bool WeaponSystem::canShoot() const
     return m_cooldownMs == 0;
 }
 
-std::unique_ptr<Bullet> WeaponSystem::fire(const QPoint& cell, Direction dir, const TankType owner)
+std::unique_ptr<Bullet> WeaponSystem::fire(const QPoint& cell, Direction dir, const TankType owner, int bulletStepIntervalMs, bool canPierceSteel)
 {
     if (!canShoot())
         return nullptr;
 
     m_cooldownMs = m_reloadMs;
-    return std::make_unique<Bullet>(cell + directionDelta(dir), dir, owner);
+    return std::make_unique<Bullet>(cell + directionDelta(dir), dir, owner, bulletStepIntervalMs, canPierceSteel);
 }

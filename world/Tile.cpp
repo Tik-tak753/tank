@@ -5,6 +5,9 @@
 
 int Tile::maxDamage() const
 {
+    if (reinforcedMaxDamage > 0)
+        return reinforcedMaxDamage;
+
     switch (type) {
     case TileType::Brick:
         return 4;
@@ -65,6 +68,8 @@ Tile TileFactory::steel()
     t.blockMask = BlockTank | BlockBullet;
     t.destructible = false;
     t.walkable = false;
+    t.pierceable = true;
+    t.reinforcedMaxDamage = 4;
     return t;
 }
 

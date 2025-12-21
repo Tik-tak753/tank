@@ -43,6 +43,8 @@ public:
     CollisionMask blockMask = BlockNone;
     bool destructible = false;
     bool walkable = true;
+    bool pierceable = false;
+    int reinforcedMaxDamage = 0;
 
     int damage() const { return m_damage; }
     int maxDamage() const;
