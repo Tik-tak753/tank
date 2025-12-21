@@ -33,8 +33,13 @@ public:
     int enemiesToSpawn() const;
     int totalEnemies() const;
     int destroyedEnemies() const;
+    int score() const;
     bool isBaseDestroyed() const;
     GameSessionState sessionState() const;
+
+    // Керування рахунком
+    void addScore(int points);
+    void resetScore();
 
     // Перевірка умов завершення
     bool isGameOver() const;
@@ -46,6 +51,7 @@ private:
     int m_aliveEnemies = 0;
     int m_totalEnemies = 0;
     int m_destroyedEnemies = 0;
+    int m_score = 0;
     bool m_baseDestroyed = false;
     GameSessionState m_sessionState = GameSessionState::Running;
 };

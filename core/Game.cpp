@@ -6,6 +6,7 @@
 #include "gameplay/PlayerTank.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/Direction.h"
+#include "core/GameRules.h"
 #include "systems/InputSystem.h"
 #include "systems/PhysicsSystem.h"
 #include "systems/CollisionSystem.h"
@@ -190,6 +191,7 @@ void Game::cleanupDestroyed(bool removeBullets)
         } else if (dynamic_cast<EnemyTank*>(tank)) {
             m_enemies.removeOne(static_cast<EnemyTank*>(tank));
             m_state.registerEnemyDestroyed();
+            m_state.addScore(m_rules.scoreRules().enemyKill);
             enemyDestroyed = true;
         }
 

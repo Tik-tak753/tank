@@ -13,6 +13,7 @@ void GameState::reset(int playerLives, int enemies)
     m_totalEnemies = enemies;
     m_destroyedEnemies = 0;
     m_aliveEnemies = 0;
+    m_score = 0;
     m_baseDestroyed = false;
     m_sessionState = GameSessionState::Running;
 }
@@ -84,9 +85,24 @@ bool GameState::isBaseDestroyed() const
     return m_baseDestroyed;
 }
 
+int GameState::score() const
+{
+    return m_score;
+}
+
 GameSessionState GameState::sessionState() const
 {
     return m_sessionState;
+}
+
+void GameState::addScore(int points)
+{
+    m_score += points;
+}
+
+void GameState::resetScore()
+{
+    m_score = 0;
 }
 
 bool GameState::isGameOver() const
