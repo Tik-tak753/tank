@@ -156,7 +156,7 @@ void Renderer::syncTanks(const Game& game)
     };
 
     auto playerColorForStars = [](int stars) {
-        if (stars >= 3)
+        if (stars >= PlayerTank::maxStars())
             return QColor(255, 255, 170);
         if (stars >= 1)
             return QColor(245, 215, 110);
@@ -207,8 +207,8 @@ void Renderer::syncTanks(const Game& game)
         }
 
         QColor bodyColor(40, 160, 32);
-        if (auto player = dynamic_cast<PlayerTank*>(tank)) {
-            bodyColor = playerColorForStars(player->stars());
+        if (tank == game.player()) {
+            bodyColor = playerColorForStars(game.playerStars());
         } else if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
             if (enemy->isHitFeedbackActive())
                 bodyColor = QColor(230, 230, 230);
@@ -365,7 +365,19 @@ void Renderer::updateHud(const Game& game)
     const int lives = game.state().remainingLives();
     const int enemyCount = game.state().aliveEnemies();
     const int score = game.state().score();
+    const int stars = game.playerStars();
+    const int maxStars = PlayerTank::maxStars();
     const QString scoreText = QStringLiteral("%1").arg(score, 7, 10, QLatin1Char('0'));
+    QString starsText;
+    starsText.reserve(maxStars);
+    for (int i = 0; i < maxStars; ++i) {
+        starsText.append(i < stars ? QStringLiteral("★") : QStringLiteral("☆"));
+    }
+
+    const QString labelColor = toCssColor(kHudLabelColor);
+    const QString livesColor = toCssColor(kHudLivesColor);
+    const QString enemyColor = toCssColor(kHudEnemyColor);
+    const QString statusColor = toCssColor(kHudStatusColor);
     QString statusText;
     switch (game.state().sessionState()) {
     case GameSessionState::Running:
@@ -380,19 +392,20 @@ void Renderer::updateHud(const Game& game)
 
     const QString text = QStringLiteral(
                              "<div style='color:%1;'>"
-                             "<span style='color:%2;'>LIVES:</span> <span style='color:%3;'>%4</span><br/>"
-                             "<span style='color:%2;'>ENEMIES:</span> <span style='color:%5;'>%6</span><br/>"
-                             "<span style='color:%2;'>SCORE:</span> <span style='color:%3;'>%7</span>%8"
+                             "<span style='color:%1;'>LIVES:</span> <span style='color:%2;'>%3</span><br/>"
+                             "<span style='color:%1;'>STARS:</span> <span style='color:%1;'>%4</span><br/>"
+                             "<span style='color:%1;'>ENEMIES:</span> <span style='color:%5;'>%6</span><br/>"
+                             "<span style='color:%1;'>SCORE:</span> <span style='color:%2;'>%7</span>%8"
                              "</div>")
-                             .arg(toCssColor(kHudLabelColor))
-                             .arg(toCssColor(kHudLabelColor))
-                             .arg(toCssColor(kHudLivesColor))
+                             .arg(labelColor)
+                             .arg(livesColor)
                              .arg(lives)
-                             .arg(toCssColor(kHudEnemyColor))
+                             .arg(starsText)
+                             .arg(enemyColor)
                              .arg(enemyCount)
                              .arg(scoreText)
                              .arg(statusText.isEmpty() ? QString() : QStringLiteral("<br/><span style='color:%1;'>%2</span>")
-                                                                                       .arg(toCssColor(kHudStatusColor))
+                                                                                       .arg(statusColor)
                                                                                        .arg(statusText));
 
     if (m_hudItem->toHtml() != text)

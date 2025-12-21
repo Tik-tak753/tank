@@ -89,6 +89,14 @@ void Game::setInputSystem(InputSystem* input)
         m_player->setInput(m_inputSystem);
 }
 
+int Game::playerStars() const
+{
+    if (!m_player)
+        return 0;
+
+    return m_player->stars();
+}
+
 void Game::update(int deltaMs)
 {
     cleanupDestroyed();

@@ -42,7 +42,7 @@ PlayerTank::PlayerTank(const QPoint& cell)
 
 void PlayerTank::addStar()
 {
-    if (m_stars >= 3)
+    if (m_stars >= kMaxStars)
         return;
 
     ++m_stars;
@@ -51,7 +51,7 @@ void PlayerTank::addStar()
 
 bool PlayerTank::canPierceSteel() const
 {
-    return m_stars >= 3;
+    return m_stars >= kMaxStars;
 }
 
 void PlayerTank::setInput(InputSystem* input)
