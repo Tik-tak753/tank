@@ -364,6 +364,8 @@ void Renderer::updateHud(const Game& game)
 
     const int lives = game.state().remainingLives();
     const int enemyCount = game.state().aliveEnemies();
+    const int score = game.state().score();
+    const QString scoreText = QStringLiteral("%1").arg(score, 7, 10, QLatin1Char('0'));
     QString statusText;
     switch (game.state().sessionState()) {
     case GameSessionState::Running:
@@ -379,7 +381,8 @@ void Renderer::updateHud(const Game& game)
     const QString text = QStringLiteral(
                              "<div style='color:%1;'>"
                              "<span style='color:%2;'>LIVES:</span> <span style='color:%3;'>%4</span><br/>"
-                             "<span style='color:%2;'>ENEMIES:</span> <span style='color:%5;'>%6</span>%7"
+                             "<span style='color:%2;'>ENEMIES:</span> <span style='color:%5;'>%6</span><br/>"
+                             "<span style='color:%2;'>SCORE:</span> <span style='color:%3;'>%7</span>%8"
                              "</div>")
                              .arg(toCssColor(kHudLabelColor))
                              .arg(toCssColor(kHudLabelColor))
@@ -387,6 +390,7 @@ void Renderer::updateHud(const Game& game)
                              .arg(lives)
                              .arg(toCssColor(kHudEnemyColor))
                              .arg(enemyCount)
+                             .arg(scoreText)
                              .arg(statusText.isEmpty() ? QString() : QStringLiteral("<br/><span style='color:%1;'>%2</span>")
                                                                                        .arg(toCssColor(kHudStatusColor))
                                                                                        .arg(statusText));

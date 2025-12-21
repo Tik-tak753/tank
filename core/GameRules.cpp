@@ -24,3 +24,8 @@ void GameRules::setBaseCell(const QPoint& cell)
 {
     m_baseCell = cell;
 }
+
+void GameRules::setScoreRules(const ScoreRules& rules)
+{
+    m_scoreRules = rules;
+}
