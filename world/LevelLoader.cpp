@@ -148,5 +148,11 @@ LevelData LevelLoader::loadDefaultLevel(const GameRules& rules) const
         lines.append(row);
     }
 
-    return loadFromText(lines, rules);
+    LevelData data = loadFromText(lines, rules);
+
+    const QPoint steelCell(5, 5);
+    if (data.map->isInside(steelCell))
+        data.map->setTile(steelCell, TileFactory::steel());
+
+    return data;
 }
