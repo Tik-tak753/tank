@@ -56,11 +56,13 @@ void CollisionSystem::resolve(
 
                 if (tank->cell() == cell) {
                     // Куля пошкоджує танк, якщо маски дійшли до прямого контакту.
-                    tank->health().takeDamage(1);
+                    const bool damaged = tank->receiveDamage(1);
 
-                    if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
-                        if (enemy->health().isAlive())
-                            enemy->triggerHitFeedback();
+                    if (damaged) {
+                        if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+                            if (enemy->health().isAlive())
+                                enemy->triggerHitFeedback();
+                        }
                     }
 
                     destroyBullet = true;

@@ -48,6 +48,7 @@ public:
     WeaponSystem& weapon() { return m_weapon; }
 
     void requestFire() { m_fireRequested = true; }
+    virtual bool receiveDamage(int dmg);
 
     virtual void update();
     virtual void updateWithDelta(int deltaMs);

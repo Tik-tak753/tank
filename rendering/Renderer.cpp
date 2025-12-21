@@ -143,8 +143,16 @@ void Renderer::syncBonuses(const Game& game)
     const qreal size = tileSize();
     const qreal bonusSize = size * 0.6;
     const QPointF offset((size - bonusSize) / 2.0, (size - bonusSize) / 2.0);
-    const QBrush bonusBrush(QColor(250, 220, 60));
     QSet<const Bonus*> seen;
+    auto brushForBonus = [](BonusType type) {
+        switch (type) {
+        case BonusType::Star: return QBrush(QColor(250, 220, 60));
+        case BonusType::Helmet: return QBrush(QColor(120, 200, 255));
+        case BonusType::Clock: return QBrush(QColor(160, 200, 255));
+        case BonusType::Grenade: return QBrush(QColor(230, 90, 80));
+        }
+        return QBrush(QColor(250, 220, 60));
+    };
 
     for (Bonus* bonus : game.bonuses()) {
         if (!bonus || bonus->isCollected())
@@ -153,10 +161,14 @@ void Renderer::syncBonuses(const Game& game)
         seen.insert(bonus);
         QGraphicsRectItem* item = m_bonusItems.value(bonus, nullptr);
         if (!item) {
-            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bonusSize, bonusSize)), QPen(Qt::NoPen), bonusBrush);
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bonusSize, bonusSize)), QPen(Qt::NoPen), brushForBonus(bonus->type()));
             item->setZValue(8);
             m_bonusItems.insert(bonus, item);
         }
+
+        const QBrush brush = brushForBonus(bonus->type());
+        if (item->brush() != brush)
+            item->setBrush(brush);
 
         const QPointF pos = QPointF(bonus->cell()) * size + offset;
         item->setPos(pos);

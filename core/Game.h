@@ -54,6 +54,9 @@ public:
     void setInputSystem(InputSystem* input);
     PlayerTank* player() const { return m_player; }
     int playerStars() const;
+    void addScoreForBonus();
+    void freezeEnemies(int durationMs);
+    void detonateEnemies();
 
 private:
     void clearWorld();
@@ -61,12 +64,13 @@ private:
     void updatePlayerRespawn(int deltaMs);
     void spawnPendingBullets();
     void updateBonuses(int deltaMs);
+    void updateBonusEffects(int deltaMs);
     void cleanupDestroyed(bool removeBullets = true);
     void evaluateSessionState();
     void handleBonusCollection();
-    void trySpawnStarBonus();
+    void trySpawnBonus();
     bool canSpawnBonusAt(const QPoint& cell) const;
-    int rollStarSpawnIntervalMs() const;
+    int rollBonusSpawnIntervalMs() const;
     void cleanupBonuses();
     void onEnemyDestroyed();
     void trySpawnPlayer();
@@ -75,6 +79,8 @@ private:
     bool canSpawnEnemyAt(const QPoint& cell) const;
     bool canSpawnPlayerAt(const QPoint& cell) const;
     void setSessionState(GameSessionState state);
+    void applyEnemyFreezeState();
+    bool hasActiveBonus() const;
 
     GameRules m_rules;
     GameState m_state;
@@ -103,8 +109,9 @@ private:
     int m_enemyRespawnDelayMs = 800;
     int m_playerRespawnDelayMs = 800;
     int m_playerRespawnTimerMs = 0;
-    int m_starSpawnTimerMs = 0;
+    int m_bonusSpawnTimerMs = 0;
     int m_enemyKillsSinceBonus = 0;
+    int m_enemyFreezeTimerMs = 0;
 };
 
 #endif // GAME_H

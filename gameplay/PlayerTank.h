@@ -28,16 +28,23 @@ public:
     void updateWithDelta(int deltaMs) override;
     int bulletStepIntervalMs() const override;
     bool bulletCanPierceSteel() const override;
+    bool receiveDamage(int dmg) override;
+
+    void activateInvincibility(int durationMs);
+    bool isInvincible() const { return m_invincibilityTimerMs > 0; }
+    void tickBonusEffects(int deltaMs);
 
 private:
     void applyUpgrades();
     int reloadTimeMs() const;
+    void updateInvincibility(int deltaMs);
 
     InputSystem* m_input = nullptr;
     const Map* m_map = nullptr;
     float m_moveAccumulator = 0.0f;
     bool m_sliding = false;
     int m_stars = 0;
+    int m_invincibilityTimerMs = 0;
 };
 
 #endif // PLAYERTANK_H

@@ -76,3 +76,9 @@ bool Tank::bulletCanPierceSteel() const
 {
     return false;
 }
+
+bool Tank::receiveDamage(int dmg)
+{
+    m_health.takeDamage(dmg);
+    return true;
+}

@@ -30,6 +30,9 @@ void EnemyTank::updateWithDelta(int deltaMs)
     if (isDestroyed())
         return;
 
+    if (m_frozen)
+        return;
+
     m_moveElapsedMs += deltaMs;
     if (m_moveElapsedMs >= m_moveIntervalMs) {
         m_moveElapsedMs = 0;
