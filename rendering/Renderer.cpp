@@ -90,15 +90,17 @@ void Renderer::drawMap(const Game& game)
                 continue;
 
             QColor color = Qt::gray;
+            qreal zValue = 0;
             if (tile.type == TileType::Brick)
                 color = QColor(193, 68, 14);
             if (tile.type == TileType::Steel)
                 color = QColor(160, 160, 160);
             if (tile.type == TileType::Water)
                 color = QColor(60, 120, 200);
-            if (tile.type == TileType::Ice)
+            if (tile.type == TileType::Ice) {
                 color = QColor(210, 230, 240);
-            qreal zValue = 0;
+                zValue = 5;
+            }
             if (tile.type == TileType::Forest) {
                 color = QColor(50, 120, 60, 210);
                 zValue = 15;
