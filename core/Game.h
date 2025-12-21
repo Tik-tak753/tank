@@ -51,6 +51,7 @@ public:
 
     void setInputSystem(InputSystem* input);
     PlayerTank* player() const { return m_player; }
+    int playerStars() const;
 
 private:
     void clearWorld();

@@ -14,6 +14,9 @@ class PlayerTank : public Tank
 public:
     explicit PlayerTank(const QPoint& cell);
 
+    static constexpr int kMaxStars = 3;
+    static constexpr int maxStars() { return kMaxStars; }
+
     int stars() const { return m_stars; }
     void addStar();
     bool canPierceSteel() const;
