@@ -6,6 +6,7 @@
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
+#include <QGraphicsView>
 #include <QFont>
 #include <QPen>
 #include <QSet>
@@ -59,6 +60,7 @@ void Renderer::renderFrame(const Game& game)
     if (!m_scene)
         return;
 
+    updateRenderTransform(game);
     updateBaseBlinking(game);
     clearMapLayer();     // DEBUG ONLY
     drawMap(game);       // reflect runtime tile changes
@@ -68,6 +70,46 @@ void Renderer::renderFrame(const Game& game)
     syncBullets(game);
     updateExplosions();
     updateHud(game);
+}
+
+void Renderer::updateRenderTransform(const Game& game)
+{
+    const Map* map = game.map();
+    if (!m_scene || !map)
+        return;
+
+    QGraphicsView* view = m_scene->views().isEmpty() ? nullptr : m_scene->views().first();
+    if (!view || !view->viewport())
+        return;
+
+    const QSize viewportSize = view->viewport()->size();
+    if (viewportSize.isEmpty())
+        return;
+
+    const QSize mapSize = map->size();
+    if (mapSize.isEmpty())
+        return;
+
+    const qreal viewportWidth = static_cast<qreal>(viewportSize.width());
+    const qreal viewportHeight = static_cast<qreal>(viewportSize.height());
+    const qreal mapWidthTiles = static_cast<qreal>(mapSize.width());
+    const qreal mapHeightTiles = static_cast<qreal>(mapSize.height());
+
+    const qreal scale = std::min(viewportWidth / mapWidthTiles, viewportHeight / mapHeightTiles);
+    if (scale <= 0.0)
+        return;
+
+    m_tileScale = scale;
+
+    const qreal mapWidthInPixels = mapWidthTiles * m_tileScale;
+    const qreal mapHeightInPixels = mapHeightTiles * m_tileScale;
+    m_renderOffset = QPointF((viewportWidth - mapWidthInPixels) / 2.0,
+                             (viewportHeight - mapHeightInPixels) / 2.0);
+
+    if (m_camera)
+        m_camera->setTileSize(m_tileScale);
+
+    m_scene->setSceneRect(QRectF(QPointF(0.0, 0.0), QSizeF(viewportSize)));
 }
 
 void Renderer::drawMap(const Game& game)
@@ -119,7 +161,7 @@ void Renderer::drawMap(const Game& game)
                 }
             }
 
-            const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
+            const QPointF pos = cellToScene(cell);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
             item->setZValue(zValue);
             m_mapItems.append(item);
@@ -170,7 +212,7 @@ void Renderer::syncBonuses(const Game& game)
         if (item->brush() != brush)
             item->setBrush(brush);
 
-        const QPointF pos = QPointF(bonus->cell()) * size + offset;
+        const QPointF pos = cellToScene(bonus->cell()) + offset;
         item->setPos(pos);
     }
 
@@ -272,7 +314,7 @@ void Renderer::syncTanks(const Game& game)
         if (item->brush().color() != bodyColor)
             item->setBrush(bodyColor);
 
-        const QPointF pos = QPointF(tank->cell()) * size;
+        const QPointF pos = cellToScene(tank->cell());
         item->setPos(pos);
         directionItem->setRect(barrelRectForDirection(tank->direction()));
         directionItem->setPos(pos);
@@ -342,7 +384,7 @@ void Renderer::syncBullets(const Game& game)
         if (item->brush().color() != bulletColor)
             item->setBrush(QBrush(bulletColor));
 
-        const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
+        const QPointF pos = cellToScene(bullet->cell()) + bulletOffset;
         item->setPos(pos);
         m_lastBulletCells.insert(bullet, bullet->cell());
         m_lastBulletExplosions.insert(bullet, bullet->spawnExplosionOnDestroy());
@@ -402,7 +444,9 @@ void Renderer::updateHud(const Game& game)
     const qreal size = tileSize();
     const qreal hudMargin = size * 0.5;
     const qreal mapWidthInPixels = static_cast<qreal>(map->size().width()) * size;
-    const QPointF hudPosition(mapWidthInPixels + hudMargin, hudMargin);
+    const qreal hudX = std::min(m_renderOffset.x() + mapWidthInPixels + hudMargin,
+                                m_scene->sceneRect().width() - hudMargin);
+    const QPointF hudPosition(hudX, m_renderOffset.y() + hudMargin);
 
     if (!m_hudItem) {
         m_hudItem = m_scene->addText(QString());
@@ -525,9 +569,14 @@ void Renderer::clearMapLayer()
     m_mapItems.clear();
 }
 
+QPointF Renderer::cellToScene(const QPoint& cell) const
+{
+    return m_renderOffset + QPointF(cell) * tileSize();
+}
+
 qreal Renderer::tileSize() const
 {
-    return static_cast<qreal>(m_camera ? m_camera->tileSize() : TILE_SIZE);
+    return m_tileScale;
 }
 
 void Renderer::updateExplosions()
@@ -550,7 +599,7 @@ void Renderer::updateExplosions()
     const QBrush brush(QColor(255, 140, 0));
 
     for (const Explosion& explosion : std::as_const(m_explosions)) {
-        const QPointF pos = QPointF(explosion.cell) * size + offset;
+        const QPointF pos = cellToScene(explosion.cell) + offset;
         QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(explosionSize, explosionSize)), QPen(Qt::NoPen), brush);
         item->setZValue(25);
         m_explosionItems.append(item);
