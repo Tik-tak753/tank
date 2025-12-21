@@ -52,6 +52,8 @@ public:
     virtual void update();
     virtual void updateWithDelta(int deltaMs);
     virtual std::unique_ptr<Bullet> tryShoot();
+    virtual int bulletStepIntervalMs() const;
+    virtual bool bulletCanPierceSteel() const;
 
 protected:
     Direction m_direction = Direction::Up;

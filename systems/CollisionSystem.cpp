@@ -89,6 +89,7 @@ bool CollisionSystem::handleBulletMapCollision(
     }
 
     const Tile tile = map.tile(cell);
+    const bool bulletCanPierce = bullet.canPierceSteel();
 
     // Маска BlockBullet визначає, чи взагалі куля повинна зупинятися на тайлі.
     // Це дозволяє описувати винятки (наприклад, ліс не блокує кулі) на рівні даних.
@@ -101,6 +102,13 @@ bool CollisionSystem::handleBulletMapCollision(
         if (tileRef.isDestroyed()) {
             map.setTile(cell, TileFactory::empty());
         }
+    } else if (bulletCanPierce && tile.pierceable) {
+        Tile& tileRef = map.tileRef(cell);
+        tileRef.takeDamage(1);
+        if (tileRef.isDestroyed()) {
+            map.setTile(cell, TileFactory::empty());
+        }
+        return false;
     }
 
     if (base && cell == base->cell()) {

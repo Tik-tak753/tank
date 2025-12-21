@@ -21,7 +21,7 @@ public:
     void tick(int deltaMs);
 
     bool canShoot() const;
-    std::unique_ptr<Bullet> fire(const QPoint& cell, Direction dir, const TankType owner);
+    std::unique_ptr<Bullet> fire(const QPoint& cell, Direction dir, const TankType owner, int bulletStepIntervalMs, bool canPierceSteel);
 
 private:
     int m_reloadMs = 500;

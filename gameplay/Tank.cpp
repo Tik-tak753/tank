@@ -64,5 +64,15 @@ std::unique_ptr<Bullet> Tank::tryShoot()
         return nullptr;
 
     m_fireRequested = false;
-    return m_weapon.fire(cell(), m_direction, m_type);
+    return m_weapon.fire(cell(), m_direction, m_type, bulletStepIntervalMs(), bulletCanPierceSteel());
+}
+
+int Tank::bulletStepIntervalMs() const
+{
+    return Bullet::kDefaultStepIntervalMs;
+}
+
+bool Tank::bulletCanPierceSteel() const
+{
+    return false;
 }

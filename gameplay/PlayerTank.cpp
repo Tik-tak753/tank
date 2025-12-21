@@ -37,6 +37,21 @@ PlayerTank::PlayerTank(const QPoint& cell)
     m_health.setLives(3);
     m_speed = 1.5f;
     setType(TankType::Player);
+    applyUpgrades();
+}
+
+void PlayerTank::addStar()
+{
+    if (m_stars >= 3)
+        return;
+
+    ++m_stars;
+    applyUpgrades();
+}
+
+bool PlayerTank::canPierceSteel() const
+{
+    return m_stars >= 3;
 }
 
 void PlayerTank::setInput(InputSystem* input)
@@ -94,4 +109,30 @@ void PlayerTank::updateWithDelta(int deltaMs)
 
     if (m_input->consumeFire())
         requestFire();
+}
+
+int PlayerTank::bulletStepIntervalMs() const
+{
+    if (m_stars >= 1)
+        return 80;
+
+    return Tank::bulletStepIntervalMs();
+}
+
+bool PlayerTank::bulletCanPierceSteel() const
+{
+    return canPierceSteel();
+}
+
+void PlayerTank::applyUpgrades()
+{
+    m_weapon.setReloadTime(reloadTimeMs());
+}
+
+int PlayerTank::reloadTimeMs() const
+{
+    if (m_stars >= 2)
+        return 250;
+
+    return 400;
 }

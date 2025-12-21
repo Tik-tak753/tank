@@ -18,6 +18,7 @@
 #include "gameplay/Bullet.h"
 #include "gameplay/Tank.h"
 #include "gameplay/EnemyTank.h"
+#include "gameplay/PlayerTank.h"
 #include "rendering/Camera.h"
 #include "rendering/SpriteManager.h"
 #include "utils/Constants.h"
@@ -154,6 +155,14 @@ void Renderer::syncTanks(const Game& game)
         return QRectF();
     };
 
+    auto playerColorForStars = [](int stars) {
+        if (stars >= 3)
+            return QColor(255, 255, 170);
+        if (stars >= 1)
+            return QColor(245, 215, 110);
+        return QColor(230, 190, 60);
+    };
+
     for (Tank* tank : game.tanks()) {
         if (!tank)
             continue;
@@ -198,8 +207,8 @@ void Renderer::syncTanks(const Game& game)
         }
 
         QColor bodyColor(40, 160, 32);
-        if (tank->getType() == TankType::Player) {
-            bodyColor = QColor(230, 190, 60);
+        if (auto player = dynamic_cast<PlayerTank*>(tank)) {
+            bodyColor = playerColorForStars(player->stars());
         } else if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
             if (enemy->isHitFeedbackActive())
                 bodyColor = QColor(230, 230, 230);
@@ -274,6 +283,10 @@ void Renderer::syncBullets(const Game& game)
             item->setZValue(20);
             m_bulletItems.insert(bullet, item);
         }
+
+        const QColor bulletColor = bullet->canPierceSteel() ? QColor(255, 180, 60) : QColor(255, 235, 80);
+        if (item->brush().color() != bulletColor)
+            item->setBrush(QBrush(bulletColor));
 
         const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
         item->setPos(pos);
