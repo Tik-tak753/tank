@@ -33,11 +33,11 @@ public:
     void setScoreRules(const ScoreRules& rules);
 
 private:
-    QSize m_mapSize = QSize(28, 28);
+    QSize m_mapSize = QSize(32, 30);
     int m_playerLives = 3;
     int m_enemiesPerWave = 4;
     int m_totalWaves = 5;
-    QPoint m_baseCell = QPoint(13, 26);
+    QPoint m_baseCell = QPoint(15, 28);
     ScoreRules m_scoreRules;
 };
 
