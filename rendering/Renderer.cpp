@@ -95,8 +95,10 @@ void Renderer::drawMap(const Game& game)
                 color = QColor(193, 68, 14);
             if (tile.type == TileType::Steel)
                 color = QColor(160, 160, 160);
-            if (tile.type == TileType::Water)
+            if (tile.type == TileType::Water) {
                 color = QColor(60, 120, 200);
+                zValue = 2;
+            }
             if (tile.type == TileType::Ice) {
                 color = QColor(210, 230, 240);
                 zValue = 5;
