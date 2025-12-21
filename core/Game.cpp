@@ -49,6 +49,15 @@ void Game::initialize()
             m_map->setTile(cell, TileFactory::ice());
     }
 
+    const QPoint waterStart(10, 8);
+    for (int dy = 0; dy < 2; ++dy) {
+        for (int dx = 0; dx < 2; ++dx) {
+            const QPoint cell = waterStart + QPoint(dx, dy);
+            if (m_map && m_map->isInside(cell))
+                m_map->setTile(cell, TileFactory::water());
+        }
+    }
+
     m_base = std::make_unique<Base>(level.baseCell);
     m_enemySpawnPoints = level.enemySpawns;
     m_playerSpawnCell = level.playerSpawn;
