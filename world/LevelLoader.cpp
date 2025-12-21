@@ -154,5 +154,9 @@ LevelData LevelLoader::loadDefaultLevel(const GameRules& rules) const
     if (data.map->isInside(steelCell))
         data.map->setTile(steelCell, TileFactory::steel());
 
+    const QPoint forestCell(6, 5);
+    if (data.map->isInside(forestCell))
+        data.map->setTile(forestCell, TileFactory::forest());
+
     return data;
 }

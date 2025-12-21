@@ -94,6 +94,15 @@ void Renderer::drawMap(const Game& game)
                 color = QColor(193, 68, 14);
             if (tile.type == TileType::Steel)
                 color = QColor(160, 160, 160);
+            if (tile.type == TileType::Water)
+                color = QColor(60, 120, 200);
+            if (tile.type == TileType::Ice)
+                color = QColor(210, 230, 240);
+            qreal zValue = 0;
+            if (tile.type == TileType::Forest) {
+                color = QColor(50, 120, 60, 210);
+                zValue = 15;
+            }
             if (tile.type == TileType::Base) {
                 const bool isBaseCell = (base && cell == baseCell);
                 if (isBaseCell && baseDestroyed) {
@@ -105,7 +114,7 @@ void Renderer::drawMap(const Game& game)
 
             const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
-            item->setZValue(0);
+            item->setZValue(zValue);
             m_mapItems.append(item);
 
             if (tile.type == TileType::Base && baseDestroyed && cell == baseCell) {
