@@ -8,6 +8,8 @@
 #include <QSet>
 #include <QString>
 
+#include "utils/Constants.h"
+
 class QGraphicsScene;
 class QGraphicsItem;
 class QGraphicsRectItem;
@@ -48,6 +50,8 @@ private:
     void updateExplosions();
     void updateHud(const Game& game);
     void updateBaseBlinking(const Game& game);
+    void updateRenderTransform(const Game& game);
+    QPointF cellToScene(const QPoint& cell) const;
     void clearMapLayer();
     qreal tileSize() const;
 
@@ -63,6 +67,8 @@ private:
     QHash<const Bonus*, QGraphicsRectItem*> m_bonusItems;
     QList<QGraphicsRectItem*> m_explosionItems;
     QGraphicsTextItem* m_hudItem = nullptr;
+    QPointF m_renderOffset{0.0, 0.0};
+    qreal m_tileScale = TILE_SIZE;
 
     bool m_baseBlinking = false;
     int m_baseBlinkCounter = 0;

@@ -9,13 +9,13 @@
 class Camera
 {
 public:
-    void setTileSize(int size) { m_tileSize = size; }
-    int tileSize() const { return m_tileSize; }
+    void setTileSize(qreal size) { m_tileSize = size; }
+    qreal tileSize() const { return m_tileSize; }
 
     QPointF toScene(const QPointF& worldPos) const;
 
 private:
-    int m_tileSize = 32;
+    qreal m_tileSize = 32.0;
 };
 
 #endif // CAMERA_H
