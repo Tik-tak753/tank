@@ -3,6 +3,7 @@
 #include "systems/InputSystem.h"
 #include "world/Map.h"
 #include <optional>
+#include <QtGlobal>
 #include "world/Tile.h"
 
 namespace {
@@ -135,4 +136,30 @@ int PlayerTank::reloadTimeMs() const
         return 250;
 
     return 400;
+}
+
+bool PlayerTank::receiveDamage(int dmg)
+{
+    if (isInvincible())
+        return false;
+
+    return Tank::receiveDamage(dmg);
+}
+
+void PlayerTank::activateInvincibility(int durationMs)
+{
+    m_invincibilityTimerMs = qMax(m_invincibilityTimerMs, durationMs);
+}
+
+void PlayerTank::tickBonusEffects(int deltaMs)
+{
+    updateInvincibility(deltaMs);
+}
+
+void PlayerTank::updateInvincibility(int deltaMs)
+{
+    if (m_invincibilityTimerMs <= 0)
+        return;
+
+    m_invincibilityTimerMs = qMax(0, m_invincibilityTimerMs - deltaMs);
 }

@@ -18,9 +18,9 @@
 #include <QRandomGenerator>
 
 namespace {
-constexpr int kStarSpawnIntervalMinMs = 15000;
-constexpr int kStarSpawnIntervalMaxMs = 20000;
-constexpr int kEnemyKillsPerStarBonus = 4;
+constexpr int kBonusSpawnIntervalMinMs = 15000;
+constexpr int kBonusSpawnIntervalMaxMs = 20000;
+constexpr int kEnemyKillsPerBonus = 4;
 }
 Game::Game(QObject* parent)
     : QObject(parent),
@@ -82,7 +82,8 @@ void Game::initialize()
     m_tanks.append(player.release());
 
     m_enemyKillsSinceBonus = 0;
-    m_starSpawnTimerMs = rollStarSpawnIntervalMs();
+    m_bonusSpawnTimerMs = rollBonusSpawnIntervalMs();
+    m_enemyFreezeTimerMs = 0;
 
     updateEnemySpawning(0);
 }
@@ -157,8 +158,9 @@ void Game::clearWorld()
     m_playerSpawnCell = QPoint();
     m_playerRespawnTimerMs = 0;
     m_enemySpawnPoints.clear();
-    m_starSpawnTimerMs = 0;
+    m_bonusSpawnTimerMs = 0;
     m_enemyKillsSinceBonus = 0;
+    m_enemyFreezeTimerMs = 0;
 }
 
 void Game::updateTanks(int deltaMs)
@@ -183,25 +185,49 @@ void Game::spawnPendingBullets()
     }
 }
 
-int Game::rollStarSpawnIntervalMs() const
+int Game::rollBonusSpawnIntervalMs() const
 {
-    return QRandomGenerator::global()->bounded(kStarSpawnIntervalMinMs, kStarSpawnIntervalMaxMs + 1);
+    return QRandomGenerator::global()->bounded(kBonusSpawnIntervalMinMs, kBonusSpawnIntervalMaxMs + 1);
+}
+
+void Game::addScoreForBonus()
+{
+    m_state.addScore(m_rules.scoreRules().bonus);
+}
+
+void Game::freezeEnemies(int durationMs)
+{
+    m_enemyFreezeTimerMs = qMax(m_enemyFreezeTimerMs, durationMs);
+    applyEnemyFreezeState();
+}
+
+void Game::detonateEnemies()
+{
+    for (EnemyTank* enemy : m_enemies) {
+        if (!enemy || enemy->isDestroyed())
+            continue;
+
+        enemy->health().takeDamage(enemy->health().health());
+        enemy->markDestroyed();
+    }
 }
 
 void Game::updateBonuses(int deltaMs)
 {
+    updateBonusEffects(deltaMs);
+
     if (m_state.sessionState() != GameSessionState::Running)
         return;
 
     if (!m_map)
         return;
 
-    if (m_starSpawnTimerMs > 0) {
-        m_starSpawnTimerMs = qMax(0, m_starSpawnTimerMs - deltaMs);
+    if (m_bonusSpawnTimerMs > 0) {
+        m_bonusSpawnTimerMs = qMax(0, m_bonusSpawnTimerMs - deltaMs);
     }
 
-    if (m_starSpawnTimerMs == 0)
-        trySpawnStarBonus();
+    if (m_bonusSpawnTimerMs == 0)
+        trySpawnBonus();
 
     for (Bonus* bonus : m_bonuses) {
         if (!bonus)
@@ -212,6 +238,20 @@ void Game::updateBonuses(int deltaMs)
 
     handleBonusCollection();
     cleanupBonuses();
+}
+
+void Game::updateBonusEffects(int deltaMs)
+{
+    if (m_state.sessionState() != GameSessionState::Running)
+        return;
+
+    if (m_player)
+        m_player->tickBonusEffects(deltaMs);
+
+    if (m_enemyFreezeTimerMs > 0)
+        m_enemyFreezeTimerMs = qMax(0, m_enemyFreezeTimerMs - deltaMs);
+
+    applyEnemyFreezeState();
 }
 
 void Game::cleanupDestroyed(bool removeBullets)
@@ -305,6 +345,7 @@ bool Game::trySpawnEnemy()
         auto enemy = std::make_unique<EnemyTank>(cell);
         enemy->setDirection(Direction::Down);
         enemy->setMap(m_map.get());
+        enemy->setFrozen(m_enemyFreezeTimerMs > 0);
 
         EnemyTank* enemyPtr = enemy.get();
         m_state.registerSpawnedEnemy();
@@ -406,19 +447,17 @@ void Game::handleBonusCollection()
         if (bonus->cell() != m_player->cell())
             continue;
 
-        switch (bonus->type()) {
-        case BonusType::Star:
-            m_player->addStar();
-            m_state.addScore(m_rules.scoreRules().bonus);
-            break;
-        }
+        bonus->apply(*this, *m_player);
         bonus->collect();
     }
 }
 
-void Game::trySpawnStarBonus()
+void Game::trySpawnBonus()
 {
     if (!m_map || m_state.sessionState() != GameSessionState::Running)
+        return;
+
+    if (hasActiveBonus())
         return;
 
     QList<QPoint> freeCells;
@@ -434,11 +473,38 @@ void Game::trySpawnStarBonus()
     if (!freeCells.isEmpty()) {
         const int index = QRandomGenerator::global()->bounded(freeCells.size());
         const QPoint spawnCell = freeCells.at(index);
-        m_bonuses.append(new StarBonus(spawnCell));
+
+        const int bonusRoll = QRandomGenerator::global()->bounded(4);
+        switch (bonusRoll) {
+        case 0:
+            m_bonuses.append(new StarBonus(spawnCell));
+            break;
+        case 1:
+            m_bonuses.append(new HelmetBonus(spawnCell));
+            break;
+        case 2:
+            m_bonuses.append(new ClockBonus(spawnCell));
+            break;
+        case 3:
+        default:
+            m_bonuses.append(new GrenadeBonus(spawnCell));
+            break;
+        }
         m_enemyKillsSinceBonus = 0;
     }
 
-    m_starSpawnTimerMs = rollStarSpawnIntervalMs();
+    m_bonusSpawnTimerMs = rollBonusSpawnIntervalMs();
+}
+
+void Game::applyEnemyFreezeState()
+{
+    const bool freezeActive = m_enemyFreezeTimerMs > 0;
+    for (EnemyTank* enemy : m_enemies) {
+        if (!enemy)
+            continue;
+
+        enemy->setFrozen(freezeActive);
+    }
 }
 
 void Game::cleanupBonuses()
@@ -458,8 +524,18 @@ void Game::cleanupBonuses()
 void Game::onEnemyDestroyed()
 {
     ++m_enemyKillsSinceBonus;
-    if (m_enemyKillsSinceBonus >= kEnemyKillsPerStarBonus)
-        trySpawnStarBonus();
+    if (m_enemyKillsSinceBonus >= kEnemyKillsPerBonus)
+        trySpawnBonus();
+}
+
+bool Game::hasActiveBonus() const
+{
+    for (Bonus* bonus : m_bonuses) {
+        if (bonus && !bonus->isCollected())
+            return true;
+    }
+
+    return false;
 }
 
 void Game::updatePlayerRespawn(int deltaMs)

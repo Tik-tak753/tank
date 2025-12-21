@@ -14,6 +14,8 @@ public:
     explicit EnemyTank(const QPoint& cell);
 
     void setMap(const Map* map) { m_map = map; }
+    void setFrozen(bool frozen) { m_frozen = frozen; }
+    bool isFrozen() const { return m_frozen; }
 
     void update() override;
     void updateWithDelta(int deltaMs) override;
@@ -41,6 +43,7 @@ private:
 
     int m_hitFeedbackTimerMs = 0;
     bool m_sliding = false;
+    bool m_frozen = false;
 };
 
 #endif // ENEMYTANK_H

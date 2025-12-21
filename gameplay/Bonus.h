@@ -3,8 +3,14 @@
 
 #include "gameplay/GameObject.h"
 
+class Game;
+class PlayerTank;
+
 enum class BonusType {
-    Star
+    Star,
+    Helmet,
+    Clock,
+    Grenade
 };
 
 /*
@@ -15,12 +21,13 @@ enum class BonusType {
 class Bonus : public GameObject
 {
 public:
-    Bonus(BonusType type, const QPoint& cell);
+    Bonus(const QPoint& cell, BonusType type);
     ~Bonus() override = default;
 
     BonusType type() const { return m_type; }
     bool isCollected() const { return m_collected; }
     void collect();
+    virtual void apply(Game& game, PlayerTank& player) = 0;
 
     void update(int deltaMs) override;
 
@@ -33,6 +40,32 @@ class StarBonus : public Bonus
 {
 public:
     explicit StarBonus(const QPoint& cell);
+
+    void apply(Game& game, PlayerTank& player) override;
+};
+
+class HelmetBonus : public Bonus
+{
+public:
+    explicit HelmetBonus(const QPoint& cell);
+
+    void apply(Game& game, PlayerTank& player) override;
+};
+
+class ClockBonus : public Bonus
+{
+public:
+    explicit ClockBonus(const QPoint& cell);
+
+    void apply(Game& game, PlayerTank& player) override;
+};
+
+class GrenadeBonus : public Bonus
+{
+public:
+    explicit GrenadeBonus(const QPoint& cell);
+
+    void apply(Game& game, PlayerTank& player) override;
 };
 
 #endif // BONUS_H
