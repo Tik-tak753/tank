@@ -27,6 +27,7 @@ private:
     Direction oppositeDirection() const;
     Direction randomDirection(Direction exclude) const;
     bool canMove(Direction direction) const;
+    bool shouldSlide() const;
     void tryMove();
     void resetFireInterval();
 
@@ -39,6 +40,7 @@ private:
     int m_moveIntervalMs = 600;
 
     int m_hitFeedbackTimerMs = 0;
+    bool m_sliding = false;
 };
 
 #endif // ENEMYTANK_H

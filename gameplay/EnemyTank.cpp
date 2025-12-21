@@ -105,10 +105,34 @@ bool EnemyTank::canMove(Direction direction) const
     return m_map->isWalkable(nextCell);
 }
 
+bool EnemyTank::shouldSlide() const
+{
+    if (!m_map)
+        return false;
+
+    const Tile tile = m_map->tile(cell());
+    if (tile.type != TileType::Ice)
+        return false;
+
+    const QPoint nextCell = cell() + directionDelta();
+    return m_map->isWalkable(nextCell);
+}
+
 void EnemyTank::tryMove()
 {
     if (!m_map)
         return;
+
+    if (m_sliding) {
+        const QPoint nextCell = cell() + directionDelta();
+        if (m_map->isWalkable(nextCell)) {
+            setCell(nextCell);
+            m_sliding = shouldSlide();
+            return;
+        }
+
+        m_sliding = false;
+    }
 
     QVector<Direction> availableDirections;
     availableDirections.reserve(4);
@@ -141,6 +165,7 @@ void EnemyTank::tryMove()
         const QPoint next = cell() + directionDelta(current);
         setDirection(current);
         setCell(next);
+        m_sliding = shouldSlide();
     }
 }
 

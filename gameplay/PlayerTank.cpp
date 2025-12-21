@@ -3,6 +3,7 @@
 #include "systems/InputSystem.h"
 #include "world/Map.h"
 #include <optional>
+#include "world/Tile.h"
 
 namespace {
 QPoint directionDelta(Direction dir)
@@ -14,6 +15,19 @@ QPoint directionDelta(Direction dir)
     case Direction::Right: return QPoint(1, 0);
     }
     return QPoint(0, 0);
+}
+
+bool shouldSlideOnIce(const Map* map, const QPoint& cell, Direction direction)
+{
+    if (!map)
+        return false;
+
+    const Tile tile = map->tile(cell);
+    if (tile.type != TileType::Ice)
+        return false;
+
+    const QPoint nextCell = cell + directionDelta(direction);
+    return map->isWalkable(nextCell);
 }
 }
 
@@ -51,27 +65,31 @@ void PlayerTank::updateWithDelta(int deltaMs)
         return;
 
     const std::optional<Direction> desired = m_input->currentDirection();
-    if (!desired.has_value())
+    if (!m_sliding && !desired.has_value())
         return;
 
-    setDirection(*desired);
+    if (!m_sliding && desired.has_value())
+        setDirection(*desired);
 
     // Підтримуємо стабільний рух по тайлах навіть за різного FPS
     const float deltaSeconds = deltaMs / 1000.0f;
     m_moveAccumulator += speed() * deltaSeconds;
 
-    const QPoint step = directionDelta(*desired);
+    const QPoint step = directionDelta(direction());
     while (m_moveAccumulator >= 1.0f) {
         const QPoint nextCell = cell() + step;
         if (m_map && !m_map->isWalkable(nextCell)) {
             // Прохідність вирішують самі тайли через маску BlockTank:
             // танк не знає деталей карти і рухається, доки дані дозволяють.
             m_moveAccumulator = 0.0f; // блокуємо накопичення в глухих кутах
+            m_sliding = false;
             break;
         }
 
         setCell(nextCell);
         m_moveAccumulator -= 1.0f;
+
+        m_sliding = shouldSlideOnIce(m_map, cell(), direction());
     }
 
     if (m_input->consumeFire())

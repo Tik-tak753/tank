@@ -41,6 +41,14 @@ void Game::initialize()
 
     LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
     m_map = std::move(level.map);
+
+    const QPoint iceStart(3, 3);
+    for (int offset = 0; offset < 4; ++offset) {
+        const QPoint cell = iceStart + QPoint(offset, 0);
+        if (m_map && m_map->isInside(cell))
+            m_map->setTile(cell, TileFactory::ice());
+    }
+
     m_base = std::make_unique<Base>(level.baseCell);
     m_enemySpawnPoints = level.enemySpawns;
     m_playerSpawnCell = level.playerSpawn;
