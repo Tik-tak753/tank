@@ -13,6 +13,7 @@
 class Tank;
 class PlayerTank;
 class EnemyTank;
+class Bonus;
 class Bullet;
 class InputSystem;
 class LevelLoader;
@@ -45,6 +46,7 @@ public:
 
     QList<Tank*> tanks() const { return m_tanks; }
     QList<Bullet*> bullets() const { return m_bullets; }
+    QList<Bonus*> bonuses() const { return m_bonuses; }
 
     Map* map() const { return m_map.get(); }
     Base* base() const { return m_base.get(); }
@@ -58,8 +60,15 @@ private:
     void updateTanks(int deltaMs);
     void updatePlayerRespawn(int deltaMs);
     void spawnPendingBullets();
+    void updateBonuses(int deltaMs);
     void cleanupDestroyed(bool removeBullets = true);
     void evaluateSessionState();
+    void handleBonusCollection();
+    void trySpawnStarBonus();
+    bool canSpawnBonusAt(const QPoint& cell) const;
+    int rollStarSpawnIntervalMs() const;
+    void cleanupBonuses();
+    void onEnemyDestroyed();
     void trySpawnPlayer();
     void updateEnemySpawning(int deltaMs);
     bool trySpawnEnemy();
@@ -78,6 +87,7 @@ private:
     QList<EnemyTank*> m_enemies;
     QList<Bullet*> m_bullets;
     std::vector<std::unique_ptr<Bullet>> m_pendingBullets;
+    QList<Bonus*> m_bonuses;
 
     InputSystem* m_inputSystem = nullptr;
     PlayerTank* m_player = nullptr;
@@ -93,6 +103,8 @@ private:
     int m_enemyRespawnDelayMs = 800;
     int m_playerRespawnDelayMs = 800;
     int m_playerRespawnTimerMs = 0;
+    int m_starSpawnTimerMs = 0;
+    int m_enemyKillsSinceBonus = 0;
 };
 
 #endif // GAME_H

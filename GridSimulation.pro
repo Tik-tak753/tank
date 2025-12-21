@@ -18,6 +18,7 @@ SOURCES += \
     core/GameRules.cpp \
     core/GameState.cpp \
     gameplay/Bullet.cpp \
+    gameplay/Bonus.cpp \
     gameplay/GameObject.cpp \
     gameplay/EnemyTank.cpp \
     gameplay/HealthSystem.cpp \
@@ -57,6 +58,7 @@ HEADERS += \
     core/GameState.h \
     enums/enums.h \
     gameplay/Bullet.h \
+    gameplay/Bonus.h \
     gameplay/Direction.h \
     gameplay/GameObject.h \
     gameplay/EnemyTank.h \

@@ -18,6 +18,7 @@ class Game;
 class Map;
 class Tank;
 class Bullet;
+class Bonus;
 
 struct Explosion
 {
@@ -41,6 +42,7 @@ public:
 private:
     void initializeMap(const Game& game);
     void drawMap(const Game& game);
+    void syncBonuses(const Game& game);
     void syncTanks(const Game& game);
     void syncBullets(const Game& game);
     void updateExplosions();
@@ -58,6 +60,7 @@ private:
     QHash<const Tank*, QGraphicsRectItem*> m_tankItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
+    QHash<const Bonus*, QGraphicsRectItem*> m_bonusItems;
     QList<QGraphicsRectItem*> m_explosionItems;
     QGraphicsTextItem* m_hudItem = nullptr;
 

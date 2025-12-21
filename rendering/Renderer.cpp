@@ -19,6 +19,7 @@
 #include "gameplay/Tank.h"
 #include "gameplay/EnemyTank.h"
 #include "gameplay/PlayerTank.h"
+#include "gameplay/Bonus.h"
 #include "rendering/Camera.h"
 #include "rendering/SpriteManager.h"
 #include "utils/Constants.h"
@@ -62,6 +63,7 @@ void Renderer::renderFrame(const Game& game)
     clearMapLayer();     // DEBUG ONLY
     drawMap(game);       // reflect runtime tile changes
 
+    syncBonuses(game);
     syncTanks(game);
     syncBullets(game);
     updateExplosions();
@@ -129,6 +131,46 @@ void Renderer::drawMap(const Game& game)
                 marker->setZValue(1);
                 m_mapItems.append(marker);
             }
+        }
+    }
+}
+
+void Renderer::syncBonuses(const Game& game)
+{
+    if (!m_scene)
+        return;
+
+    const qreal size = tileSize();
+    const qreal bonusSize = size * 0.6;
+    const QPointF offset((size - bonusSize) / 2.0, (size - bonusSize) / 2.0);
+    const QBrush bonusBrush(QColor(250, 220, 60));
+    QSet<const Bonus*> seen;
+
+    for (Bonus* bonus : game.bonuses()) {
+        if (!bonus || bonus->isCollected())
+            continue;
+
+        seen.insert(bonus);
+        QGraphicsRectItem* item = m_bonusItems.value(bonus, nullptr);
+        if (!item) {
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bonusSize, bonusSize)), QPen(Qt::NoPen), bonusBrush);
+            item->setZValue(8);
+            m_bonusItems.insert(bonus, item);
+        }
+
+        const QPointF pos = QPointF(bonus->cell()) * size + offset;
+        item->setPos(pos);
+    }
+
+    auto it = m_bonusItems.begin();
+    while (it != m_bonusItems.end()) {
+        if (!seen.contains(it.key())) {
+            QGraphicsItem* item = it.value();
+            m_scene->removeItem(item);
+            delete item;
+            it = m_bonusItems.erase(it);
+        } else {
+            ++it;
         }
     }
 }

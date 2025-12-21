@@ -6,6 +6,7 @@
 #include "gameplay/PlayerTank.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/Direction.h"
+#include "gameplay/Bonus.h"
 #include "core/GameRules.h"
 #include "systems/InputSystem.h"
 #include "systems/PhysicsSystem.h"
@@ -14,7 +15,13 @@
 #include "world/LevelLoader.h"
 #include "world/Map.h"
 #include "world/Tile.h"
+#include <QRandomGenerator>
 
+namespace {
+constexpr int kStarSpawnIntervalMinMs = 15000;
+constexpr int kStarSpawnIntervalMaxMs = 20000;
+constexpr int kEnemyKillsPerStarBonus = 4;
+}
 Game::Game(QObject* parent)
     : QObject(parent),
       m_levelLoader(std::make_unique<LevelLoader>()),
@@ -74,6 +81,9 @@ void Game::initialize()
     m_player = player.get();
     m_tanks.append(player.release());
 
+    m_enemyKillsSinceBonus = 0;
+    m_starSpawnTimerMs = rollStarSpawnIntervalMs();
+
     updateEnemySpawning(0);
 }
 
@@ -121,12 +131,17 @@ void Game::update(int deltaMs)
     m_pendingBullets.clear();
 
     cleanupDestroyed(false);
+    updateBonuses(deltaMs);
     evaluateSessionState();
     updateEnemySpawning(deltaMs);
 }
 
 void Game::clearWorld()
 {
+    for (Bonus* bonus : m_bonuses)
+        delete bonus;
+    m_bonuses.clear();
+
     for (Bullet* bullet : m_bullets)
         delete bullet;
     m_bullets.clear();
@@ -142,6 +157,8 @@ void Game::clearWorld()
     m_playerSpawnCell = QPoint();
     m_playerRespawnTimerMs = 0;
     m_enemySpawnPoints.clear();
+    m_starSpawnTimerMs = 0;
+    m_enemyKillsSinceBonus = 0;
 }
 
 void Game::updateTanks(int deltaMs)
@@ -164,6 +181,37 @@ void Game::spawnPendingBullets()
         m_pendingBullets.pop_back();
         m_bullets.append(bullet.release());
     }
+}
+
+int Game::rollStarSpawnIntervalMs() const
+{
+    return QRandomGenerator::global()->bounded(kStarSpawnIntervalMinMs, kStarSpawnIntervalMaxMs + 1);
+}
+
+void Game::updateBonuses(int deltaMs)
+{
+    if (m_state.sessionState() != GameSessionState::Running)
+        return;
+
+    if (!m_map)
+        return;
+
+    if (m_starSpawnTimerMs > 0) {
+        m_starSpawnTimerMs = qMax(0, m_starSpawnTimerMs - deltaMs);
+    }
+
+    if (m_starSpawnTimerMs == 0)
+        trySpawnStarBonus();
+
+    for (Bonus* bonus : m_bonuses) {
+        if (!bonus)
+            continue;
+
+        bonus->update(deltaMs);
+    }
+
+    handleBonusCollection();
+    cleanupBonuses();
 }
 
 void Game::cleanupDestroyed(bool removeBullets)
@@ -196,10 +244,11 @@ void Game::cleanupDestroyed(bool removeBullets)
             m_player = nullptr;
             m_state.registerPlayerLostLife();
             playerDestroyed = true;
-        } else if (dynamic_cast<EnemyTank*>(tank)) {
-            m_enemies.removeOne(static_cast<EnemyTank*>(tank));
+        } else if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+            m_enemies.removeOne(enemy);
             m_state.registerEnemyDestroyed();
             m_state.addScore(m_rules.scoreRules().enemyKill);
+            onEnemyDestroyed();
             enemyDestroyed = true;
         }
 
@@ -287,6 +336,45 @@ bool Game::canSpawnEnemyAt(const QPoint& cell) const
     return true;
 }
 
+bool Game::canSpawnBonusAt(const QPoint& cell) const
+{
+    if (!m_map || !m_map->isInside(cell))
+        return false;
+
+    const Tile tile = m_map->tile(cell);
+    if (tile.blockMask != BlockNone)
+        return false;
+
+    if (m_base && m_base->cell() == cell)
+        return false;
+
+    for (Tank* tank : m_tanks) {
+        if (!tank)
+            continue;
+
+        if (!tank->isDestructionFinished() && tank->cell() == cell)
+            return false;
+    }
+
+    for (Bullet* bullet : m_bullets) {
+        if (!bullet)
+            continue;
+
+        if (bullet->isAlive() && bullet->cell() == cell)
+            return false;
+    }
+
+    for (Bonus* bonus : m_bonuses) {
+        if (!bonus || bonus->isCollected())
+            continue;
+
+        if (bonus->cell() == cell)
+            return false;
+    }
+
+    return true;
+}
+
 bool Game::canSpawnPlayerAt(const QPoint& cell) const
 {
     if (!m_map || !m_map->isInside(cell))
@@ -304,6 +392,74 @@ bool Game::canSpawnPlayerAt(const QPoint& cell) const
     }
 
     return true;
+}
+
+void Game::handleBonusCollection()
+{
+    if (!m_player)
+        return;
+
+    for (Bonus* bonus : m_bonuses) {
+        if (!bonus || bonus->isCollected())
+            continue;
+
+        if (bonus->cell() != m_player->cell())
+            continue;
+
+        switch (bonus->type()) {
+        case BonusType::Star:
+            m_player->addStar();
+            m_state.addScore(m_rules.scoreRules().bonus);
+            break;
+        }
+        bonus->collect();
+    }
+}
+
+void Game::trySpawnStarBonus()
+{
+    if (!m_map || m_state.sessionState() != GameSessionState::Running)
+        return;
+
+    QList<QPoint> freeCells;
+    const QSize mapSize = m_map->size();
+    for (int y = 0; y < mapSize.height(); ++y) {
+        for (int x = 0; x < mapSize.width(); ++x) {
+            const QPoint cell(x, y);
+            if (canSpawnBonusAt(cell))
+                freeCells.append(cell);
+        }
+    }
+
+    if (!freeCells.isEmpty()) {
+        const int index = QRandomGenerator::global()->bounded(freeCells.size());
+        const QPoint spawnCell = freeCells.at(index);
+        m_bonuses.append(new StarBonus(spawnCell));
+        m_enemyKillsSinceBonus = 0;
+    }
+
+    m_starSpawnTimerMs = rollStarSpawnIntervalMs();
+}
+
+void Game::cleanupBonuses()
+{
+    for (qsizetype i = m_bonuses.size(); i > 0; --i) {
+        Bonus* bonus = m_bonuses.at(i - 1);
+        if (!bonus)
+            continue;
+
+        if (bonus->isCollected()) {
+            delete bonus;
+            m_bonuses.removeAt(i - 1);
+        }
+    }
+}
+
+void Game::onEnemyDestroyed()
+{
+    ++m_enemyKillsSinceBonus;
+    if (m_enemyKillsSinceBonus >= kEnemyKillsPerStarBonus)
+        trySpawnStarBonus();
 }
 
 void Game::updatePlayerRespawn(int deltaMs)
