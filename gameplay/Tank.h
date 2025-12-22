@@ -35,8 +35,8 @@ public:
     bool isDestructionFinished() const { return m_destroyed && m_destructionTimerMs <= 0; }
     void markDestroyed();
 
-    QPoint cell() const { return GameObject::cell(); }
-    void setCell(const QPoint& cell) { GameObject::setCell(cell); }
+    QPoint cell() const { return m_cell; }
+    void setCell(const QPoint& cell);
 
     Direction direction() const { return m_direction; }
     void setDirection(Direction dir) { m_direction = dir; }
@@ -57,8 +57,24 @@ public:
     virtual bool bulletCanPierceSteel() const;
 
 protected:
+    static constexpr int kStepsPerTile = 8;
+
+    int stepIntervalMsForSpeed(float speed) const;
+    int stepIntervalMs() const { return m_stepIntervalMs; }
+    bool isAlignedToGrid() const { return m_subTileProgress == 0; }
+    void resetSubTileProgress();
+    void updateRenderPosition(Direction dir);
+
+    static QPoint directionDelta(Direction dir);
+
     Direction m_direction = Direction::Up;
     float m_speed = 1.0f;
+
+    QPoint m_cell;
+
+    int m_stepIntervalMs = 0;
+    int m_stepAccumulatorMs = 0;
+    int m_subTileProgress = 0;
 
     bool m_fireRequested = false;
 

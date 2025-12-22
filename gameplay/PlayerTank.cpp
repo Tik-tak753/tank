@@ -7,17 +7,6 @@
 #include "world/Tile.h"
 
 namespace {
-QPoint directionDelta(Direction dir)
-{
-    switch (dir) {
-    case Direction::Up:    return QPoint(0, -1);
-    case Direction::Down:  return QPoint(0, 1);
-    case Direction::Left:  return QPoint(-1, 0);
-    case Direction::Right: return QPoint(1, 0);
-    }
-    return QPoint(0, 0);
-}
-
 bool shouldSlideOnIce(const Map* map, const QPoint& cell, Direction direction)
 {
     if (!map)
@@ -26,8 +15,7 @@ bool shouldSlideOnIce(const Map* map, const QPoint& cell, Direction direction)
     const Tile tile = map->tile(cell);
     if (tile.type != TileType::Ice)
         return false;
-
-    const QPoint nextCell = cell + directionDelta(direction);
+    const QPoint nextCell = cell + Tank::directionDelta(direction);
     return map->isWalkable(nextCell);
 }
 }
@@ -37,6 +25,7 @@ PlayerTank::PlayerTank(const QPoint& cell)
 {
     m_health.setLives(3);
     m_speed = 1.5f;
+    setSpeed(m_speed);
     setType(TankType::Player);
     applyUpgrades();
 }
@@ -84,28 +73,39 @@ void PlayerTank::updateWithDelta(int deltaMs)
     if (!m_sliding && !desired.has_value())
         return;
 
-    if (!m_sliding && desired.has_value())
+    if (!m_sliding && desired.has_value() && isAlignedToGrid())
         setDirection(*desired);
 
-    // Підтримуємо стабільний рух по тайлах навіть за різного FPS
-    const float deltaSeconds = deltaMs / 1000.0f;
-    m_moveAccumulator += speed() * deltaSeconds;
+    if (stepIntervalMs() <= 0)
+        return;
 
-    const QPoint step = directionDelta(direction());
-    while (m_moveAccumulator >= 1.0f) {
+    m_stepAccumulatorMs += deltaMs;
+
+    while (m_stepAccumulatorMs >= stepIntervalMs()) {
+        m_stepAccumulatorMs -= stepIntervalMs();
+
+        if (m_subTileProgress == 0 && desired.has_value() && direction() != *desired)
+            setDirection(*desired);
+
+        const QPoint step = Tank::directionDelta(direction());
         const QPoint nextCell = cell() + step;
-        if (m_map && !m_map->isWalkable(nextCell)) {
-            // Прохідність вирішують самі тайли через маску BlockTank:
-            // танк не знає деталей карти і рухається, доки дані дозволяють.
-            m_moveAccumulator = 0.0f; // блокуємо накопичення в глухих кутах
+
+        const bool canAdvance = (!m_map || m_map->isWalkable(nextCell));
+        if (!canAdvance) {
+            m_stepAccumulatorMs = 0;
+            m_subTileProgress = 0;
             m_sliding = false;
+            updateRenderPosition(direction());
             break;
         }
 
-        setCell(nextCell);
-        m_moveAccumulator -= 1.0f;
+        ++m_subTileProgress;
+        updateRenderPosition(direction());
 
-        m_sliding = shouldSlideOnIce(m_map, cell(), direction());
+        if (m_subTileProgress >= kStepsPerTile) {
+            setCell(nextCell);
+            m_sliding = shouldSlideOnIce(m_map, cell(), direction());
+        }
     }
 
     if (m_input->consumeFire())

@@ -13,6 +13,7 @@ EnemyTank::EnemyTank(const QPoint& cell)
     setDirection(Direction::Down);
     resetFireInterval();
     setType(TankType::Enemy);
+    setSpeed(1000.0f / m_moveIntervalMs);
 }
 
 void EnemyTank::update()
@@ -34,10 +35,6 @@ void EnemyTank::updateWithDelta(int deltaMs)
         return;
 
     m_moveElapsedMs += deltaMs;
-    if (m_moveElapsedMs >= m_moveIntervalMs) {
-        m_moveElapsedMs = 0;
-        tryMove();
-    }
 
     m_fireElapsedMs += deltaMs;
     if (m_fireElapsedMs >= m_fireIntervalMs) {
@@ -45,28 +42,51 @@ void EnemyTank::updateWithDelta(int deltaMs)
         m_fireElapsedMs = 0;
         resetFireInterval();
     }
+
+    if (stepIntervalMs() <= 0)
+        return;
+
+    m_stepAccumulatorMs += deltaMs;
+
+    while (m_stepAccumulatorMs >= stepIntervalMs()) {
+        m_stepAccumulatorMs -= stepIntervalMs();
+
+        const bool needsDirectionUpdate = isAlignedToGrid() && ((m_moveElapsedMs >= m_moveIntervalMs && !m_sliding) || !canMove(direction()));
+        if (needsDirectionUpdate) {
+            m_moveElapsedMs = 0;
+            tryMove();
+        }
+
+        const QPoint step = directionDelta();
+        const QPoint nextCell = cell() + step;
+        const bool canAdvance = (m_map && m_map->isWalkable(nextCell));
+        if (!canAdvance) {
+            m_stepAccumulatorMs = 0;
+            m_subTileProgress = 0;
+            m_sliding = false;
+            updateRenderPosition(direction());
+            m_moveElapsedMs = m_moveIntervalMs; // force new direction check on next aligned tick
+            break;
+        }
+
+        ++m_subTileProgress;
+        updateRenderPosition(direction());
+
+        if (m_subTileProgress >= kStepsPerTile) {
+            setCell(nextCell);
+            m_sliding = shouldSlide();
+        }
+    }
 }
 
 QPoint EnemyTank::directionDelta() const
 {
-    switch (direction()) {
-    case Direction::Up:    return QPoint(0, -1);
-    case Direction::Down:  return QPoint(0, 1);
-    case Direction::Left:  return QPoint(-1, 0);
-    case Direction::Right: return QPoint(1, 0);
-    }
-    return QPoint(0, 0);
+    return Tank::directionDelta(direction());
 }
 
 QPoint EnemyTank::directionDelta(Direction direction) const
 {
-    switch (direction) {
-    case Direction::Up:    return QPoint(0, -1);
-    case Direction::Down:  return QPoint(0, 1);
-    case Direction::Left:  return QPoint(-1, 0);
-    case Direction::Right: return QPoint(1, 0);
-    }
-    return QPoint(0, 0);
+    return Tank::directionDelta(direction);
 }
 
 Direction EnemyTank::oppositeDirection() const
@@ -126,17 +146,6 @@ void EnemyTank::tryMove()
     if (!m_map)
         return;
 
-    if (m_sliding) {
-        const QPoint nextCell = cell() + directionDelta();
-        if (m_map->isWalkable(nextCell)) {
-            setCell(nextCell);
-            m_sliding = shouldSlide();
-            return;
-        }
-
-        m_sliding = false;
-    }
-
     QVector<Direction> availableDirections;
     availableDirections.reserve(4);
     for (Direction dir : {Direction::Up, Direction::Down, Direction::Left, Direction::Right}) {
@@ -164,12 +173,8 @@ void EnemyTank::tryMove()
         setDirection(current);
     }
 
-    if (canMove(current)) {
-        const QPoint next = cell() + directionDelta(current);
-        setDirection(current);
-        setCell(next);
-        m_sliding = shouldSlide();
-    }
+    setDirection(current);
+    m_sliding = shouldSlide();
 }
 
 void EnemyTank::resetFireInterval()
