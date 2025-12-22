@@ -306,10 +306,7 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
         if (tank == game.player()) {
             bodyColor = playerColorForStars(game.playerStars());
         } else if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
-            if (enemy->isHitFeedbackActive())
-                bodyColor = QColor(230, 230, 230);
-            else
-                bodyColor = QColor(100, 120, 180);
+            bodyColor = enemy->currentColor();
         }
         if (item->brush().color() != bodyColor)
             item->setBrush(bodyColor);

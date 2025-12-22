@@ -9,6 +9,7 @@
 
 #include "core/GameState.h"
 #include "core/GameRules.h"
+#include "enums/enums.h"
 
 class Tank;
 class PlayerTank;
@@ -69,13 +70,17 @@ private:
     void evaluateSessionState();
     void handleBonusCollection();
     void trySpawnBonus();
+    void spawnBonusAtCell(const QPoint& cell);
     bool canSpawnBonusAt(const QPoint& cell) const;
     int rollBonusSpawnIntervalMs() const;
+    std::unique_ptr<Bonus> createRandomBonus(const QPoint& cell) const;
     void cleanupBonuses();
-    void onEnemyDestroyed();
+    void onEnemyDestroyed(EnemyTank& enemy);
     void trySpawnPlayer();
     void updateEnemySpawning(int deltaMs);
     bool trySpawnEnemy();
+    EnemyType nextEnemyType();
+    void prepareEnemyQueue(int totalEnemies);
     bool canSpawnEnemyAt(const QPoint& cell) const;
     bool canSpawnPlayerAt(const QPoint& cell) const;
     void setSessionState(GameSessionState state);
@@ -94,6 +99,7 @@ private:
     QList<Bullet*> m_bullets;
     std::vector<std::unique_ptr<Bullet>> m_pendingBullets;
     QList<Bonus*> m_bonuses;
+    QList<EnemyType> m_enemySpawnOrder;
 
     InputSystem* m_inputSystem = nullptr;
     PlayerTank* m_player = nullptr;
@@ -104,6 +110,7 @@ private:
     QList<QPoint> m_enemySpawnPoints;
     QPoint m_playerSpawnCell;
     qsizetype m_nextSpawnIndex = 0;
+    qsizetype m_nextEnemyTypeIndex = 0;
     int m_maxAliveEnemies = 0;
     int m_enemySpawnCooldownMs = 0;
     int m_enemyRespawnDelayMs = 800;
