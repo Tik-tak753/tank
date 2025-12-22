@@ -2,6 +2,11 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
+
+#include <QFile>
+#include <QRegularExpression>
+#include <QTextStream>
 
 #include "world/Tile.h"
 #include "world/Wall.h"
@@ -17,6 +22,50 @@ QPoint defaultPlayerSpawn(const QSize& size, const QPoint& baseCell)
 
     return QPoint(std::clamp(size.width() / 2, 0, size.width() - 1),
                   std::clamp(size.height() - 2, 0, size.height() - 1));
+}
+
+std::array<QPoint, 3> defaultEnemySpawns(const QSize& size)
+{
+    const int maxX = std::max(0, size.width() - 1);
+    const int maxY = std::max(0, size.height() - 1);
+    const int y = std::clamp(1, 0, maxY);
+
+    const int left = std::clamp(1, 0, maxX);
+    const int center = std::clamp(size.width() / 2, 0, maxX);
+    const int right = std::clamp(size.width() - 2, 0, maxX);
+
+    return {QPoint(left, y), QPoint(center, y), QPoint(right, y)};
+}
+
+Tile tileForType(TileType type)
+{
+    switch (type) {
+    case TileType::Empty: return TileFactory::empty();
+    case TileType::Brick: return TileFactory::brick();
+    case TileType::Steel: return TileFactory::steel();
+    case TileType::Forest: return TileFactory::forest();
+    case TileType::Water: return TileFactory::water();
+    case TileType::Ice: return TileFactory::ice();
+    case TileType::Base: return TileFactory::base();
+    }
+
+    Q_UNREACHABLE();
+}
+
+std::optional<TileType> tileTypeFromCode(int code)
+{
+    switch (code) {
+    case 0: return TileType::Empty;
+    case 1: return TileType::Brick;
+    case 2: return TileType::Steel;
+    case 3: return TileType::Forest;
+    case 4: return TileType::Water;
+    case 5: return TileType::Ice;
+    default:
+        break;
+    }
+
+    return std::nullopt;
 }
 } // namespace
 
@@ -107,6 +156,130 @@ LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& r
 
         data.playerSpawn = candidate;
         break;
+    }
+
+    return data;
+}
+
+LevelData LevelLoader::loadSavedLevel(const GameRules& rules) const
+{
+    LevelData fallback = loadDefaultLevel(rules);
+
+    const QString filePath = QStringLiteral("assets/maps/custom_map.txt");
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return fallback;
+
+    QTextStream stream(&file);
+    QVector<QVector<int>> rows;
+    QSize declaredSize = rules.mapSize();
+    bool sizeParsed = false;
+
+    while (!stream.atEnd()) {
+        const QString line = stream.readLine();
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty())
+            continue;
+
+        const QStringList parts = trimmed.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        if (!sizeParsed && parts.size() >= 2) {
+            bool okWidth = false;
+            bool okHeight = false;
+            const int width = parts.at(0).toInt(&okWidth);
+            const int height = parts.at(1).toInt(&okHeight);
+            if (okWidth && okHeight && width > 0 && height > 0) {
+                declaredSize = QSize(width, height);
+                sizeParsed = true;
+                continue;
+            }
+        }
+
+        QVector<int> row;
+        row.reserve(parts.size());
+        for (const QString& part : parts) {
+            bool ok = false;
+            const int value = part.toInt(&ok);
+            if (!ok)
+                continue;
+            row.append(value);
+        }
+
+        if (!row.isEmpty())
+            rows.append(std::move(row));
+    }
+
+    if (!sizeParsed && rows.isEmpty())
+        return fallback;
+
+    const QSize mapSize = rules.mapSize();
+    LevelData data;
+    data.map = std::make_unique<Map>(mapSize);
+    data.baseCell = rules.baseCell();
+    data.playerSpawn = defaultPlayerSpawn(mapSize, data.baseCell);
+    const std::array<QPoint, 3> spawnDefaults = defaultEnemySpawns(mapSize);
+    for (const QPoint& spawn : spawnDefaults)
+        data.enemySpawns.append(spawn);
+    data.loadedFromFile = true;
+
+    const int width = mapSize.width();
+    const int height = mapSize.height();
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const QPoint cell(x, y);
+            data.map->setTile(cell, TileFactory::empty());
+        }
+    }
+
+    const int appliedHeight = std::min({height, declaredSize.height(), static_cast<int>(rows.size())});
+    for (int y = 0; y < appliedHeight; ++y) {
+        const QVector<int>& row = rows.at(y);
+        const int appliedWidth = std::min({width, declaredSize.width(), static_cast<int>(row.size())});
+        for (int x = 0; x < appliedWidth; ++x) {
+            const int code = row.at(x);
+            const std::optional<TileType> type = tileTypeFromCode(code);
+            if (!type.has_value() || *type == TileType::Base)
+                continue;
+
+            const QPoint cell(x, y);
+            data.map->setTile(cell, tileForType(*type));
+        }
+    }
+
+    if (data.map->isInside(data.baseCell))
+        data.map->setTile(data.baseCell, TileFactory::base());
+
+    const QPoint leftOfBase(data.baseCell.x() - 1, data.baseCell.y());
+    const QPoint bottomCenter(std::clamp(mapSize.width() / 2, 0, mapSize.width() - 1),
+                              std::clamp(mapSize.height() - 2, 0, mapSize.height() - 1));
+    const std::array<QPoint, 3> spawnCandidates = {
+        data.playerSpawn,
+        leftOfBase,
+        bottomCenter,
+    };
+
+    for (const QPoint& candidate : spawnCandidates) {
+        if (!data.map->isInside(candidate))
+            continue;
+
+        Tile tile = data.map->tile(candidate);
+        if (tile.type == TileType::Base)
+            continue;
+
+        data.map->setTile(candidate, TileFactory::empty());
+        data.playerSpawn = candidate;
+        break;
+    }
+
+    const std::array<QPoint, 3> enemySpawns = defaultEnemySpawns(mapSize);
+    data.enemySpawns.clear();
+    for (const QPoint& spawn : enemySpawns) {
+        if (!data.map->isInside(spawn))
+            continue;
+        if (data.map->tile(spawn).type == TileType::Base)
+            continue;
+        data.map->setTile(spawn, TileFactory::empty());
+        data.enemySpawns.append(spawn);
     }
 
     return data;
