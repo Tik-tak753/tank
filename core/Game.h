@@ -4,10 +4,8 @@
 #include <QObject>
 #include <QList>
 #include <QPoint>
-#include <QtGlobal>
 #include <vector>
 #include <memory>
-#include <optional>
 
 #include "core/GameState.h"
 #include "core/GameRules.h"
@@ -64,14 +62,6 @@ public:
     void addScoreForBonus();
     void freezeEnemies(int durationMs);
     void detonateEnemies();
-    bool isEditMode() const { return m_state.gameMode() == GameMode::Editing; }
-    void enterEditMode();
-    void exitEditMode();
-    void selectEditorTile(TileType type);
-    void setHoveredCell(const QPoint& cell);
-    void clearHoveredCell();
-    std::optional<QPoint> hoveredCell() const { return m_hoveredCell; }
-    void applyEditorClick(const QPoint& cell, Qt::MouseButton button);
 
 private:
     void clearWorld();
@@ -100,7 +90,6 @@ private:
     void setSessionState(GameSessionState state);
     void applyEnemyFreezeState();
     bool hasActiveBonus() const;
-    Tile tileForType(TileType type) const;
 
     GameRules m_rules;
     GameState m_state;
@@ -134,8 +123,6 @@ private:
     int m_bonusSpawnTimerMs = 0;
     int m_enemyKillsSinceBonus = 0;
     int m_enemyFreezeTimerMs = 0;
-    TileType m_selectedTileType = TileType::Brick;
-    std::optional<QPoint> m_hoveredCell;
 };
 
 #endif // GAME_H

@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <utility>
 #include <QString>
-#include <optional>
 
 #include "core/Game.h"
 #include "gameplay/Bullet.h"
@@ -65,34 +64,12 @@ void Renderer::renderFrame(const Game& game, qreal alpha)
     updateBaseBlinking(game);
     clearMapLayer();     // DEBUG ONLY
     drawMap(game);       // reflect runtime tile changes
-    if (game.state().gameMode() == GameMode::Editing)
-        drawEditOverlay(game);
 
     syncBonuses(game);
     syncTanks(game, alpha);
     syncBullets(game, alpha);
     updateExplosions();
     updateHud(game);
-}
-
-bool Renderer::scenePosToCell(const QPointF& scenePos, const Game& game, QPoint& cell) const
-{
-    const Map* map = game.map();
-    if (!map || tileSize() <= 0.0)
-        return false;
-
-    const QPointF localPos = scenePos - m_renderOffset;
-    if (localPos.x() < 0.0 || localPos.y() < 0.0)
-        return false;
-
-    const int x = static_cast<int>(localPos.x() / tileSize());
-    const int y = static_cast<int>(localPos.y() / tileSize());
-    const QPoint candidate(x, y);
-    if (!map->isInside(candidate))
-        return false;
-
-    cell = candidate;
-    return true;
 }
 
 void Renderer::updateRenderTransform(const Game& game)
@@ -197,41 +174,6 @@ void Renderer::drawMap(const Game& game)
                 m_mapItems.append(marker);
             }
         }
-    }
-}
-
-void Renderer::drawEditOverlay(const Game& game)
-{
-    const Map* map = game.map();
-    if (!map || !m_scene)
-        return;
-
-    const QSize mapSize = map->size();
-    const qreal size = tileSize();
-    const qsizetype height = static_cast<qsizetype>(mapSize.height());
-    const qsizetype width = static_cast<qsizetype>(mapSize.width());
-
-    QPen gridPen(QColor(255, 255, 255, 70));
-    gridPen.setWidthF(std::max<qreal>(1.0, size * 0.04));
-
-    for (qsizetype y = 0; y < height; ++y) {
-        for (qsizetype x = 0; x < width; ++x) {
-            const QPoint cell(static_cast<int>(x), static_cast<int>(y));
-            const QRectF rect(cellToScene(cell), QSizeF(size, size));
-            QGraphicsRectItem* grid = m_scene->addRect(rect, gridPen, Qt::NoBrush);
-            grid->setZValue(40);
-            m_gridItems.append(grid);
-        }
-    }
-
-    const std::optional<QPoint> hovered = game.hoveredCell();
-    if (hovered.has_value() && map->isInside(*hovered)) {
-        const QRectF rect(cellToScene(*hovered), QSizeF(size, size));
-        QPen hoverPen(QColor(255, 255, 255, 200));
-        hoverPen.setWidthF(std::max<qreal>(1.0, size * 0.08));
-        QBrush hoverBrush(QColor(255, 255, 255, 60));
-        m_hoverItem = m_scene->addRect(rect, hoverPen, hoverBrush);
-        m_hoverItem->setZValue(45);
     }
 }
 
@@ -626,18 +568,6 @@ void Renderer::clearMapLayer()
         delete item;
     }
     m_mapItems.clear();
-
-    for (QGraphicsItem* item : m_gridItems) {
-        m_scene->removeItem(item);
-        delete item;
-    }
-    m_gridItems.clear();
-
-    if (m_hoverItem) {
-        m_scene->removeItem(m_hoverItem);
-        delete m_hoverItem;
-        m_hoverItem = nullptr;
-    }
 }
 
 QPointF Renderer::cellToScene(const QPoint& cell) const

@@ -10,7 +10,6 @@ enum class GameSessionState {
 enum class GameMode {
     MainMenu,
     Playing,
-    Editing,
     Paused,
     GameOver,
 };
