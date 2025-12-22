@@ -16,6 +16,7 @@ void GameState::reset(int playerLives, int enemies)
     m_score = 0;
     m_baseDestroyed = false;
     m_sessionState = GameSessionState::Running;
+    m_gameMode = GameMode::Playing;
 }
 
 void GameState::setBaseDestroyed()
@@ -95,6 +96,11 @@ GameSessionState GameState::sessionState() const
     return m_sessionState;
 }
 
+GameMode GameState::gameMode() const
+{
+    return m_gameMode;
+}
+
 void GameState::addScore(int points)
 {
     m_score += points;
@@ -105,8 +111,16 @@ void GameState::resetScore()
     m_score = 0;
 }
 
+void GameState::setGameMode(GameMode mode)
+{
+    m_gameMode = mode;
+}
+
 bool GameState::isGameOver() const
 {
+    if (m_gameMode == GameMode::MainMenu)
+        return false;
+
     return m_sessionState == GameSessionState::GameOver || m_baseDestroyed || m_playerLives <= 0;
 }
 

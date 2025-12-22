@@ -35,6 +35,11 @@ Game::~Game()
     clearWorld();
 }
 
+void Game::startNewGame()
+{
+    initialize();
+}
+
 void Game::initialize()
 {
     // На цьому кроці в майбутньому будемо створювати карту, танки та базу.
@@ -44,6 +49,7 @@ void Game::initialize()
 
     const int totalEnemies = m_rules.enemiesPerWave() * m_rules.totalWaves();
     m_state.reset(m_rules.playerLives(), totalEnemies);
+    m_state.setGameMode(GameMode::Playing);
     prepareEnemyQueue(totalEnemies);
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
@@ -94,6 +100,25 @@ void Game::restart()
     initialize();
 }
 
+void Game::pause()
+{
+    if (m_state.gameMode() == GameMode::Playing)
+        m_state.setGameMode(GameMode::Paused);
+}
+
+void Game::resume()
+{
+    if (m_state.gameMode() == GameMode::Paused)
+        m_state.setGameMode(GameMode::Playing);
+}
+
+void Game::enterMainMenu()
+{
+    clearWorld();
+    m_state.setSessionState(GameSessionState::Running);
+    m_state.setGameMode(GameMode::MainMenu);
+}
+
 void Game::setInputSystem(InputSystem* input)
 {
     m_inputSystem = input;
@@ -111,14 +136,19 @@ int Game::playerStars() const
 
 void Game::update(int deltaMs)
 {
+    if (m_state.gameMode() != GameMode::Playing)
+        return;
+
     cleanupDestroyed();
 
     evaluateSessionState();
-    if (m_state.isGameOver() || m_state.isVictory())
+    if (m_state.isGameOver() || m_state.isVictory()) {
+        m_state.setGameMode(GameMode::GameOver);
         return;
+    }
 
     if (!m_map)
-        initialize();
+        return;
 
     updatePlayerRespawn(deltaMs);
     updateTanks(deltaMs);
@@ -657,8 +687,10 @@ void Game::setSessionState(GameSessionState state)
     case GameSessionState::Running:
         break;
     case GameSessionState::GameOver:
+        m_state.setGameMode(GameMode::GameOver);
         break;
     case GameSessionState::Victory:
+        m_state.setGameMode(GameMode::GameOver);
         break;
     }
 }

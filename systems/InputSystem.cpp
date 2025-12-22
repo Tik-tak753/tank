@@ -72,6 +72,12 @@ bool InputSystem::consumeFire()
     return true;
 }
 
+void InputSystem::clear()
+{
+    m_pressedDirections.clear();
+    m_fireRequested = false;
+}
+
 void InputSystem::pushDirection(Direction dir)
 {
     const auto it = std::find(m_pressedDirections.begin(), m_pressedDirections.end(), dir);
