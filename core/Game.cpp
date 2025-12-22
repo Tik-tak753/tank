@@ -44,6 +44,7 @@ void Game::initialize()
 
     const int totalEnemies = m_rules.enemiesPerWave() * m_rules.totalWaves();
     m_state.reset(m_rules.playerLives(), totalEnemies);
+    prepareEnemyQueue(totalEnemies);
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
 
@@ -152,6 +153,7 @@ void Game::clearWorld()
         delete tank;
     m_tanks.clear();
     m_enemies.clear();
+    m_enemySpawnOrder.clear();
     m_map.reset();
     m_base.reset();
     m_player = nullptr;
@@ -161,6 +163,7 @@ void Game::clearWorld()
     m_bonusSpawnTimerMs = 0;
     m_enemyKillsSinceBonus = 0;
     m_enemyFreezeTimerMs = 0;
+    m_nextEnemyTypeIndex = 0;
 }
 
 void Game::updateTanks(int deltaMs)
@@ -288,7 +291,7 @@ void Game::cleanupDestroyed(bool removeBullets)
             m_enemies.removeOne(enemy);
             m_state.registerEnemyDestroyed();
             m_state.addScore(m_rules.scoreRules().enemyKill);
-            onEnemyDestroyed();
+            onEnemyDestroyed(*enemy);
             enemyDestroyed = true;
         }
 
@@ -342,7 +345,8 @@ bool Game::trySpawnEnemy()
         if (!canSpawnEnemyAt(cell))
             continue;
 
-        auto enemy = std::make_unique<EnemyTank>(cell);
+        const EnemyType type = nextEnemyType();
+        auto enemy = std::make_unique<EnemyTank>(cell, type);
         enemy->setDirection(Direction::Down);
         enemy->setMap(m_map.get());
         enemy->setFrozen(m_enemyFreezeTimerMs > 0);
@@ -355,6 +359,32 @@ bool Game::trySpawnEnemy()
     }
 
     return false;
+}
+
+EnemyType Game::nextEnemyType()
+{
+    if (m_enemySpawnOrder.isEmpty())
+        return EnemyType::Basic;
+
+    const qsizetype index = m_nextEnemyTypeIndex % m_enemySpawnOrder.size();
+    const EnemyType type = m_enemySpawnOrder.at(index);
+    m_nextEnemyTypeIndex = (m_nextEnemyTypeIndex + 1) % m_enemySpawnOrder.size();
+    return type;
+}
+
+void Game::prepareEnemyQueue(int totalEnemies)
+{
+    static const QList<EnemyType> kPattern = {EnemyType::Basic, EnemyType::Fast, EnemyType::Armored, EnemyType::Power};
+    m_enemySpawnOrder.clear();
+    m_nextEnemyTypeIndex = 0;
+
+    if (totalEnemies <= 0)
+        return;
+
+    for (int i = 0; i < totalEnemies; ++i) {
+        const EnemyType type = kPattern.at(i % kPattern.size());
+        m_enemySpawnOrder.append(type);
+    }
 }
 
 bool Game::canSpawnEnemyAt(const QPoint& cell) const
@@ -452,6 +482,22 @@ void Game::handleBonusCollection()
     }
 }
 
+std::unique_ptr<Bonus> Game::createRandomBonus(const QPoint& cell) const
+{
+    const int bonusRoll = QRandomGenerator::global()->bounded(4);
+    switch (bonusRoll) {
+    case 0:
+        return std::make_unique<StarBonus>(cell);
+    case 1:
+        return std::make_unique<HelmetBonus>(cell);
+    case 2:
+        return std::make_unique<ClockBonus>(cell);
+    case 3:
+    default:
+        return std::make_unique<GrenadeBonus>(cell);
+    }
+}
+
 void Game::trySpawnBonus()
 {
     if (!m_map || m_state.sessionState() != GameSessionState::Running)
@@ -474,26 +520,30 @@ void Game::trySpawnBonus()
         const int index = QRandomGenerator::global()->bounded(freeCells.size());
         const QPoint spawnCell = freeCells.at(index);
 
-        const int bonusRoll = QRandomGenerator::global()->bounded(4);
-        switch (bonusRoll) {
-        case 0:
-            m_bonuses.append(new StarBonus(spawnCell));
-            break;
-        case 1:
-            m_bonuses.append(new HelmetBonus(spawnCell));
-            break;
-        case 2:
-            m_bonuses.append(new ClockBonus(spawnCell));
-            break;
-        case 3:
-        default:
-            m_bonuses.append(new GrenadeBonus(spawnCell));
-            break;
+        std::unique_ptr<Bonus> bonus = createRandomBonus(spawnCell);
+        if (bonus) {
+            m_bonuses.append(bonus.release());
+            m_enemyKillsSinceBonus = 0;
         }
-        m_enemyKillsSinceBonus = 0;
     }
 
     m_bonusSpawnTimerMs = rollBonusSpawnIntervalMs();
+}
+
+void Game::spawnBonusAtCell(const QPoint& cell)
+{
+    if (!m_map || m_state.sessionState() != GameSessionState::Running)
+        return;
+
+    if (!canSpawnBonusAt(cell))
+        return;
+
+    std::unique_ptr<Bonus> bonus = createRandomBonus(cell);
+    if (bonus) {
+        m_bonuses.append(bonus.release());
+        m_enemyKillsSinceBonus = 0;
+        m_bonusSpawnTimerMs = rollBonusSpawnIntervalMs();
+    }
 }
 
 void Game::applyEnemyFreezeState()
@@ -521,9 +571,16 @@ void Game::cleanupBonuses()
     }
 }
 
-void Game::onEnemyDestroyed()
+void Game::onEnemyDestroyed(EnemyTank& enemy)
 {
     ++m_enemyKillsSinceBonus;
+
+    if (enemy.dropsBonus()) {
+        spawnBonusAtCell(enemy.cell());
+        m_enemyKillsSinceBonus = 0;
+        return;
+    }
+
     if (m_enemyKillsSinceBonus >= kEnemyKillsPerBonus)
         trySpawnBonus();
 }

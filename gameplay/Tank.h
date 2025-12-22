@@ -48,6 +48,7 @@ public:
     void setSpeed(float speed);
 
     HealthSystem& health() { return m_health; }
+    const HealthSystem& health() const { return m_health; }
     WeaponSystem& weapon() { return m_weapon; }
 
     void requestFire() { m_fireRequested = true; }
