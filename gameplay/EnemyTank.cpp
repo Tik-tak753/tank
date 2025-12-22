@@ -13,7 +13,7 @@ EnemyTank::EnemyTank(const QPoint& cell)
     setDirection(Direction::Down);
     resetFireInterval();
     setType(TankType::Enemy);
-    setSpeed(1000.0f / m_moveIntervalMs);
+    setSpeed(kDefaultTilesPerSecond);
 }
 
 void EnemyTank::update()

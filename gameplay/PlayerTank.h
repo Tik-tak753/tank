@@ -35,6 +35,8 @@ public:
     void tickBonusEffects(int deltaMs);
 
 private:
+    float movementSpeedTilesPerSecond() const;
+    int bulletStepIntervalForStars() const;
     void applyUpgrades();
     int reloadTimeMs() const;
     void updateInvincibility(int deltaMs);

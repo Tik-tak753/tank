@@ -14,7 +14,8 @@ class Tank;
 class Bullet
 {
 public:
-    static constexpr int kDefaultStepIntervalMs = 120;
+    // ~130 мс на плитку — снаряд пролітає приблизно дві плитки, поки базовий танк минає одну.
+    static constexpr int kDefaultStepIntervalMs = 130;
 
     Bullet(const QPoint& cell, Direction dir, const TankType type, int stepIntervalMs = kDefaultStepIntervalMs, bool canPierceSteel = false);
 

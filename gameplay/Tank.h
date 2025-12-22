@@ -58,6 +58,7 @@ public:
 
 protected:
     static constexpr int kStepsPerTile = 8;
+    static constexpr float kDefaultTilesPerSecond = 3.9f;
 
     int stepIntervalMsForSpeed(float speed) const;
     int stepIntervalMs() const { return m_stepIntervalMs; }
@@ -68,7 +69,7 @@ protected:
     static QPoint directionDelta(Direction dir);
 
     Direction m_direction = Direction::Up;
-    float m_speed = 1.0f;
+    float m_speed = kDefaultTilesPerSecond;
 
     QPoint m_cell;
 
