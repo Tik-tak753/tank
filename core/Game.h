@@ -45,6 +45,7 @@ public:
     void pause();
     void resume();
     void enterMainMenu();
+    void enterEditor();
 
     const GameState& state() const { return m_state; }
     GameRules& rules() { return m_rules; }

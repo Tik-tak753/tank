@@ -12,6 +12,7 @@ enum class GameMode {
     Playing,
     Paused,
     GameOver,
+    Editing,
 };
 
 /*
