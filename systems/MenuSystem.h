@@ -48,6 +48,7 @@ private:
     void activateMenu(MenuState state, const QString& title, QVector<MenuEntry> entries);
     void buildMainMenu();
     void buildPauseMenu();
+    void buildGameOverMenu(bool victory);
     void startGame();
     void pauseGame();
     void resumeGame();

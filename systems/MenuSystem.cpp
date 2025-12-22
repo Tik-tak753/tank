@@ -48,9 +48,11 @@ bool MenuSystem::blocksGameplay() const
 bool MenuSystem::handleInput(QKeyEvent& event)
 {
     const int key = event.key();
-    switch (m_state) {
-    case MenuState::MainMenu:
-    case MenuState::PauseMenu:
+    const bool hasMenuEntries = m_state == MenuState::MainMenu
+        || m_state == MenuState::PauseMenu
+        || m_state == MenuState::GameOverMenu;
+
+    if (hasMenuEntries) {
         if (key == Qt::Key_Up || key == Qt::Key_Down) {
             if (!m_activeEntries.isEmpty()) {
                 const int direction = (key == Qt::Key_Up) ? -1 : 1;
@@ -69,29 +71,24 @@ bool MenuSystem::handleInput(QKeyEvent& event)
             event.accept();
             return true;
         }
-        if (m_state == MenuState::MainMenu && key == Qt::Key_Escape) {
-            if (m_exitCallback)
-                m_exitCallback();
+        if (key == Qt::Key_Escape) {
+            if (m_state == MenuState::MainMenu) {
+                if (m_exitCallback)
+                    m_exitCallback();
+            } else if (m_state == MenuState::PauseMenu) {
+                resumeGame();
+            } else if (m_state == MenuState::GameOverMenu) {
+                returnToMainMenu();
+            }
             event.accept();
             return true;
         }
-        if (m_state == MenuState::PauseMenu && key == Qt::Key_Escape) {
-            resumeGame();
-            event.accept();
-            return true;
-        }
-        break;
+    }
+
+    switch (m_state) {
+    case MenuState::MainMenu:
+    case MenuState::PauseMenu:
     case MenuState::GameOverMenu:
-        if (key == Qt::Key_R) {
-            restartLevel();
-            event.accept();
-            return true;
-        }
-        if (key == Qt::Key_M) {
-            returnToMainMenu();
-            event.accept();
-            return true;
-        }
         break;
     case MenuState::None:
         if (key == Qt::Key_Escape) {
@@ -160,6 +157,15 @@ void MenuSystem::buildPauseMenu()
     activateMenu(MenuState::PauseMenu, QStringLiteral("PAUSED"), std::move(entries));
 }
 
+void MenuSystem::buildGameOverMenu(bool victory)
+{
+    QVector<MenuEntry> entries;
+    entries.append(MenuEntry{QStringLiteral("Restart Level"), [this]() { restartLevel(); }});
+    entries.append(MenuEntry{QStringLiteral("Exit to Main Menu"), [this]() { returnToMainMenu(); }});
+    const QString title = victory ? QStringLiteral("STAGE CLEAR") : QStringLiteral("GAME OVER");
+    activateMenu(MenuState::GameOverMenu, title, std::move(entries));
+}
+
 void MenuSystem::startGame()
 {
     clearInput();
@@ -211,10 +217,12 @@ void MenuSystem::returnToMainMenu()
 
 void MenuSystem::enterGameOverMenu(bool victory)
 {
+    if (m_state == MenuState::GameOverMenu && m_victory == victory)
+        return;
+
     clearInput();
     m_victory = victory;
-    m_state = MenuState::GameOverMenu;
-    hideMenuItems();
+    buildGameOverMenu(victory);
 }
 
 void MenuSystem::clearInput()
@@ -456,23 +464,12 @@ void MenuSystem::updateMenuOverlays()
         hideOverlay(m_gameOverItem);
         updateMenuPanel(rect);
         break;
-    case MenuState::GameOverMenu: {
-        const QString text = m_victory ? QStringLiteral("STAGE CLEAR") : QStringLiteral("GAME OVER");
-        ensureOverlay(m_gameOverItem, text);
-        if (m_gameOverItem) {
-            QFont font = m_gameOverItem->font();
-            font.setPointSize(40);
-            font.setBold(true);
-            m_gameOverItem->setFont(font);
-            m_gameOverItem->setDefaultTextColor(m_victory ? QColor(240, 240, 240) : Qt::red);
-            m_gameOverItem->setZValue(1600);
-        }
+    case MenuState::GameOverMenu:
         hideOverlay(m_mainMenuItem);
         hideOverlay(m_pauseMenuItem);
-        hideMenuItems();
-        centerOverlay(m_gameOverItem);
+        hideOverlay(m_gameOverItem);
+        updateMenuPanel(rect);
         break;
-    }
     case MenuState::None:
         hideOverlay(m_mainMenuItem);
         hideOverlay(m_pauseMenuItem);
