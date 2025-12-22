@@ -15,6 +15,7 @@ struct LevelData
     QPoint playerSpawn;
     QList<QPoint> enemySpawns;
     QPoint baseCell;
+    bool loadedFromFile = false;
 };
 
 /*
@@ -27,6 +28,7 @@ class LevelLoader
 public:
     LevelData loadDefaultLevel(const GameRules& rules) const;
     LevelData loadFromText(const QStringList& lines, const GameRules& rules) const;
+    LevelData loadSavedLevel(const GameRules& rules) const;
 };
 
 #endif // LEVELLOADER_H

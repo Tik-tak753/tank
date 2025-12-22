@@ -54,7 +54,7 @@ void Game::initialize()
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
 
-    LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
+    LevelData level = m_levelLoader->loadSavedLevel(m_rules);
     m_map = std::move(level.map);
 
     const QPoint iceStart(3, 3);
