@@ -29,7 +29,7 @@ public:
     virtual ~Tank() = default;
 
     TankType getType();
-
+    static QPoint directionDelta(Direction dir);
     void setType(TankType type);
 
     bool isDestroyed() const { return m_destroyed; }
@@ -71,7 +71,7 @@ protected:
     void updateRenderPosition(Direction dir);
     void syncRenderPositions(bool resetPrevious = true);
 
-    static QPoint directionDelta(Direction dir);
+
 
     Direction m_direction = Direction::Up;
     float m_speed = kDefaultTilesPerSecond;
