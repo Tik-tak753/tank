@@ -427,9 +427,14 @@ QRectF MenuSystem::sceneRect() const
     if (!m_scene)
         return QRectF();
 
+    QGraphicsView* view = m_scene->views().isEmpty() ? nullptr : m_scene->views().first();
+    if (view && view->viewport()) {
+        const QSize viewportSize = view->viewport()->size();
+        if (!viewportSize.isEmpty())
+            return QRectF(QPointF(0.0, 0.0), QSizeF(viewportSize));
+    }
+
     QRectF rect = m_scene->sceneRect();
-    if ((!rect.isValid() || rect.isNull()) && !m_scene->views().isEmpty() && m_scene->views().first()->viewport())
-        rect = QRectF(QPointF(0.0, 0.0), QSizeF(m_scene->views().first()->viewport()->size()));
 
     if (!rect.isValid() || rect.isNull())
         rect = m_scene->itemsBoundingRect();
