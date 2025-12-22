@@ -122,7 +122,8 @@ bool LevelEditor::handleMousePress(QMouseEvent& event)
     if (!m_view || !m_view->viewport())
         return false;
 
-    const QPoint viewportPos = m_view->viewport()->mapFromGlobal(event.globalPos());
+    const QPoint viewportPos =
+        m_view->viewport()->mapFromGlobal(event.globalPosition().toPoint());
     if (!m_view->viewport()->rect().contains(viewportPos))
         return false;
 
@@ -397,10 +398,10 @@ void LevelEditor::applyTileData(const QVector<QVector<int>>& rows, const QSize& 
         }
     }
 
-    const int appliedHeight = std::min(height, rows.size());
+    const int appliedHeight = std::min(height, static_cast<int>(rows.size()));
     for (int y = 0; y < appliedHeight; ++y) {
         const QVector<int>& row = rows.at(y);
-        const int appliedWidth = std::min(width, row.size());
+        const int appliedWidth = std::min(width, static_cast<int>(row.size()));
         for (int x = 0; x < appliedWidth; ++x) {
             const QPoint cell(x, y);
             if (isProtectedCell(cell))
