@@ -16,6 +16,7 @@ Tank::Tank(const QPoint& cell)
     m_health.setLives(1);
     m_weapon.setReloadTime(400);
     setSpeed(m_speed);
+    syncRenderPositions(true);
 }
 
 TankType Tank::getType()
@@ -50,6 +51,8 @@ void Tank::update()
 
 void Tank::updateWithDelta(int deltaMs)
 {
+    m_renderPositionPrevious = m_renderPositionCurrent;
+
     if (m_destroyed) {
         m_destructionTimerMs -= deltaMs;
         return;
@@ -73,13 +76,21 @@ int Tank::stepIntervalMsForSpeed(float speed) const
 void Tank::setCell(const QPoint& cell)
 {
     m_cell = cell;
-    m_position = QPointF(cell);
+    syncRenderPositions(false);
     resetSubTileProgress();
 }
 
 void Tank::resetSubTileProgress()
 {
     m_subTileProgress = 0;
+}
+
+void Tank::syncRenderPositions(bool resetPrevious)
+{
+    m_renderPositionCurrent = QPointF(m_cell);
+    if (resetPrevious)
+        m_renderPositionPrevious = m_renderPositionCurrent;
+    m_position = m_renderPositionCurrent;
 }
 
 QPoint Tank::directionDelta(Direction dir)
@@ -96,7 +107,8 @@ QPoint Tank::directionDelta(Direction dir)
 void Tank::updateRenderPosition(Direction dir)
 {
     const QPointF offset = QPointF(directionDelta(dir)) * (static_cast<qreal>(m_subTileProgress) / kStepsPerTile);
-    m_position = QPointF(m_cell) + offset;
+    m_renderPositionCurrent = QPointF(m_cell) + offset;
+    m_position = m_renderPositionCurrent;
 }
 
 std::unique_ptr<Bullet> Tank::tryShoot()

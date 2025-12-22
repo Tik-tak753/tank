@@ -7,6 +7,7 @@
 #include <QPointF>
 #include <QSet>
 #include <QString>
+#include <QtGlobal>
 
 #include "utils/Constants.h"
 
@@ -39,19 +40,20 @@ public:
     void setSpriteManager(SpriteManager* manager);
     void setCamera(Camera* camera);
 
-    void renderFrame(const Game& game);
+    void renderFrame(const Game& game, qreal alpha);
 
 private:
     void initializeMap(const Game& game);
     void drawMap(const Game& game);
     void syncBonuses(const Game& game);
-    void syncTanks(const Game& game);
+    void syncTanks(const Game& game, qreal alpha);
     void syncBullets(const Game& game);
     void updateExplosions();
     void updateHud(const Game& game);
     void updateBaseBlinking(const Game& game);
     void updateRenderTransform(const Game& game);
     QPointF cellToScene(const QPoint& cell) const;
+    QPointF tileToScene(const QPointF& tile) const;
     void clearMapLayer();
     qreal tileSize() const;
 

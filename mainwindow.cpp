@@ -9,6 +9,7 @@
 #include <QKeyEvent>
 #include <QSize>
 #include <QColor>
+#include <QtGlobal>
 
 #include "core/Game.h"
 #include "systems/InputSystem.h"
@@ -50,12 +51,21 @@ MainWindow::MainWindow(QWidget *parent)
      * Timer / GameLoop
      * ===================== */
 
+    m_frameTimer.start();
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, [this]() {
-        const int deltaMs = 16; // ~60 FPS
-        m_game->update(deltaMs);
+        const qint64 frameDeltaMs = m_frameTimer.restart();
+        m_frameAccumulatorMs += frameDeltaMs;
+
+        while (m_frameAccumulatorMs >= kFixedTickMs) {
+            m_game->update(kFixedTickMs);
+            m_frameAccumulatorMs -= kFixedTickMs;
+        }
+
+        const qreal alpha = static_cast<qreal>(m_frameAccumulatorMs) / static_cast<qreal>(kFixedTickMs);
+
         if (m_renderer)
-            m_renderer->renderFrame(*m_game);
+            m_renderer->renderFrame(*m_game, alpha);
 
         if (m_game && !m_gameOverItem && (m_game->state().isGameOver() || m_game->state().isVictory())) {
             const bool victory = m_game->state().isVictory();
@@ -76,7 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
             m_gameOverItem->setPos(centeredPos);
         }
     });
-    m_timer->start(16);
+    m_timer->start(kFixedTickMs);
 }
 
 MainWindow::~MainWindow()
