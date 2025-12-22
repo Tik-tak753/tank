@@ -110,7 +110,7 @@ Tile TileFactory::water()
     // Вода зупиняє рух і снаряди, але не руйнується, що дозволяє стабільно контролювати маршрути.
     Tile t;
     t.type = TileType::Water;
-    t.blockMask = BlockTank | BlockBullet;
+    t.blockMask = BlockTank;
     t.destructible = false;
     t.walkable = false;
     return t;
