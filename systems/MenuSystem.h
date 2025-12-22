@@ -3,6 +3,7 @@
 
 #include <QRectF>
 #include <QString>
+#include <QVector>
 #include <functional>
 
 #include "core/GameState.h"
@@ -11,6 +12,7 @@ class Game;
 class InputSystem;
 class QGraphicsScene;
 class QGraphicsTextItem;
+class QGraphicsRectItem;
 class QKeyEvent;
 
 enum class MenuState {
@@ -38,6 +40,14 @@ public:
     void showMainMenu();
 
 private:
+    struct MenuEntry {
+        QString label;
+        std::function<void()> action;
+    };
+
+    void activateMenu(MenuState state, const QString& title, QVector<MenuEntry> entries);
+    void buildMainMenu();
+    void buildPauseMenu();
     void startGame();
     void pauseGame();
     void resumeGame();
@@ -49,6 +59,11 @@ private:
     void ensureOverlay(QGraphicsTextItem*& item, const QString& text);
     void hideOverlay(QGraphicsTextItem* item);
     void centerOverlay(QGraphicsTextItem* item) const;
+    void updateMenuBackground(const QRectF& rect, bool visible);
+    void updateMenuPanel(const QRectF& rect);
+    void updateMenuEntries(const QRectF& rect);
+    void hideMenuItems();
+    void updateSelectionVisuals();
     QRectF sceneRect() const;
     void clearGameOverOverlay();
     void updateMenuOverlays();
@@ -60,6 +75,13 @@ private:
     QGraphicsTextItem* m_mainMenuItem = nullptr;
     QGraphicsTextItem* m_pauseMenuItem = nullptr;
     QGraphicsTextItem* m_gameOverItem = nullptr;
+    QGraphicsRectItem* m_overlayRect = nullptr;
+    QGraphicsRectItem* m_menuPanel = nullptr;
+    QGraphicsTextItem* m_menuTitleItem = nullptr;
+    QVector<QGraphicsTextItem*> m_menuEntryItems;
+    QVector<MenuEntry> m_activeEntries;
+    QString m_activeTitle;
+    int m_selectedIndex = 0;
     bool m_victory = false;
     std::function<void()> m_exitCallback;
 };
