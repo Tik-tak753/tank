@@ -57,7 +57,7 @@ public:
     virtual bool bulletCanPierceSteel() const;
 
 protected:
-    static constexpr int kStepsPerTile = 8;
+    static constexpr int kStepsPerTile = 16;
     static constexpr float kDefaultTilesPerSecond = 3.9f;
 
     int stepIntervalMsForSpeed(float speed) const;
