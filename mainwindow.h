@@ -9,12 +9,14 @@ class QGraphicsScene;
 class QGraphicsView;
 class QTimer;
 class QKeyEvent;
+class QMouseEvent;
 class QResizeEvent;
 
 class Game;
 class InputSystem;
 class MenuSystem;
 class Renderer;
+class LevelEditor;
 
 class MainWindow : public QMainWindow
 {
@@ -27,6 +29,7 @@ public:
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 
 private:
@@ -41,6 +44,7 @@ private:
     std::unique_ptr<InputSystem> m_input;
     std::unique_ptr<MenuSystem> m_menuSystem;
     std::unique_ptr<Renderer> m_renderer;
+    std::unique_ptr<LevelEditor> m_levelEditor;
 
     // Timer
     QTimer* m_timer = nullptr;

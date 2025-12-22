@@ -8,7 +8,9 @@
 #include <QSize>
 #include <QResizeEvent>
 #include <QtGlobal>
+#include <QMouseEvent>
 
+#include "LevelEditor.h"
 #include "core/Game.h"
 #include "systems/InputSystem.h"
 #include "systems/MenuSystem.h"
@@ -53,6 +55,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_menuSystem->showMainMenu();
 
     m_renderer = std::make_unique<Renderer>(m_scene);
+    m_levelEditor = std::make_unique<LevelEditor>();
+    m_levelEditor->setGame(m_game.get());
+    m_levelEditor->setView(m_view);
 
     /* =====================
      * Timer / GameLoop
@@ -104,6 +109,14 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    const bool editing = m_game && m_game->state().gameMode() == GameMode::Editing;
+    if (editing) {
+        if (m_levelEditor && m_levelEditor->handleKeyPress(*event))
+            return;
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
+
     if (m_input && m_input->handleKeyPress(event->key(), event->nativeScanCode())) {
         event->accept();
         return;
@@ -124,12 +137,31 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
         return;
     }
 
+    const bool editing = m_game && m_game->state().gameMode() == GameMode::Editing;
+    if (editing) {
+        QMainWindow::keyReleaseEvent(event);
+        return;
+    }
+
     if (m_input && m_input->handleKeyRelease(event->key(), event->nativeScanCode())) {
         event->accept();
         return;
     }
 
     QMainWindow::keyReleaseEvent(event);
+}
+
+void MainWindow::mousePressEvent(QMouseEvent *event)
+{
+    if (m_menuSystem && m_menuSystem->blocksGameplay()) {
+        QMainWindow::mousePressEvent(event);
+        return;
+    }
+
+    if (m_levelEditor && m_levelEditor->handleMousePress(*event))
+        return;
+
+    QMainWindow::mousePressEvent(event);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)

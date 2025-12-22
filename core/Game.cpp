@@ -122,6 +122,15 @@ void Game::enterMainMenu()
 void Game::enterEditor()
 {
     clearWorld();
+
+    if (!m_levelLoader)
+        m_levelLoader = std::make_unique<LevelLoader>();
+
+    LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
+    m_map = std::move(level.map);
+    m_base = std::make_unique<Base>(level.baseCell);
+
+    m_state.reset(0, 0);
     m_state.setSessionState(GameSessionState::Running);
     m_state.setGameMode(GameMode::Editing);
 }
