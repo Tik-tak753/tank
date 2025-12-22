@@ -1,8 +1,6 @@
 #include "gameplay/Bullet.h"
 
 namespace {
-constexpr qsizetype kStepIntervalMs = 120;
-
 QPoint stepDelta(Direction dir)
 {
     switch (dir) {
@@ -16,11 +14,16 @@ QPoint stepDelta(Direction dir)
 }
 } // namespace
 
-Bullet::Bullet(const QPoint& cell, Direction dir, const TankType type)
+Bullet::Bullet(const QPoint& cell, Direction dir, const TankType type, int stepIntervalMs, bool canPierceSteel)
     : m_cell(cell),
       m_direction(dir),
-      m_ownerType(type)
+      m_ownerType(type),
+      m_stepIntervalMs(stepIntervalMs),
+      m_canPierceSteel(canPierceSteel),
+      m_renderPositionCurrent(QPointF(cell)),
+      m_renderPositionPrevious(QPointF(cell))
 {
+    m_subStepIntervalMs = (kStepsPerTile > 0) ? static_cast<qreal>(m_stepIntervalMs) / static_cast<qreal>(kStepsPerTile) : 0.0;
 }
 
 void Bullet::update(int deltaMs)
@@ -28,12 +31,27 @@ void Bullet::update(int deltaMs)
     if (!m_alive)
         return;
 
-    m_elapsedMs += static_cast<qsizetype>(deltaMs);
-    if (m_elapsedMs < kStepIntervalMs)
-        return;
+    m_renderPositionPrevious = m_renderPositionCurrent;
 
-    m_elapsedMs -= kStepIntervalMs;
-    m_cell += stepDelta(m_direction);
+    m_elapsedMs += static_cast<qreal>(deltaMs);
+    if (m_subStepIntervalMs <= 0.0) {
+        updateRenderPosition();
+        return;
+    }
+
+    while (m_elapsedMs >= m_subStepIntervalMs) {
+        m_elapsedMs -= m_subStepIntervalMs;
+        ++m_subTileProgress;
+
+        if (m_subTileProgress >= kStepsPerTile) {
+            m_subTileProgress = 0;
+            m_cell += stepDelta(m_direction);
+        }
+
+        updateRenderPosition();
+    }
+
+    updateRenderPosition();
 }
 
 QPoint Bullet::directionDelta() const
@@ -50,4 +68,18 @@ void Bullet::destroy(bool spawnExplosion)
 {
     m_spawnExplosionOnDestroy = spawnExplosion;
     m_alive = false;
+}
+
+QPointF Bullet::visualTilePosition() const
+{
+    if (kStepsPerTile <= 0)
+        return QPointF(m_cell);
+
+    const qreal progress = static_cast<qreal>(m_subTileProgress) / static_cast<qreal>(kStepsPerTile);
+    return QPointF(m_cell) + QPointF(directionDelta()) * progress;
+}
+
+void Bullet::updateRenderPosition()
+{
+    m_renderPositionCurrent = visualTilePosition();
 }

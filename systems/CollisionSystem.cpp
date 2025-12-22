@@ -1,7 +1,5 @@
 #include "systems/CollisionSystem.h"
 
-#include <QtGlobal>
-
 #include "core/GameState.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/EnemyTank.h"
@@ -19,6 +17,8 @@ void CollisionSystem::resolve(
     Base* base,
     GameState& state)
 {
+    // Система лише звіряє маски взаємодії: вона не знає конкретних типів тайлів,
+    // а перевіряє, чи дозволено снаряду або танку зайти в клітинку.
     for (qsizetype i = 0; i < bullets.size(); ++i) {
         Bullet* bullet = bullets.at(i);
         if (!bullet || !bullet->isAlive())
@@ -28,39 +28,7 @@ void CollisionSystem::resolve(
         bool destroyBullet = false;
         bool spawnBulletExplosion = true;
 
-        // ---- Out of bounds ----
-        if (!map.isInside(cell)) {
-            destroyBullet = true;
-        } else {
-            const Tile target = map.tile(cell);
-
-            switch (target.type) {
-            case TileType::Empty:
-                break;
-
-            case TileType::Brick:
-                map.setTile(cell, TileFactory::empty());
-                destroyBullet = true;
-                break;
-
-            case TileType::Steel:
-                destroyBullet = true;
-                break;
-
-            case TileType::Base:
-                destroyBullet = true;
-
-                if (base && !state.isBaseDestroyed()) {
-                    base->takeDamage();
-
-                    if (base->isDestroyed()) {
-                        state.setBaseDestroyed();
-                        map.setTile(cell, TileFactory::empty());
-                    }
-                }
-                break;
-            }
-        }
+        destroyBullet = handleBulletMapCollision(*bullet, map, base, state, spawnBulletExplosion);
 
         // ---- Tank collision ----
         if (!destroyBullet) {
@@ -87,11 +55,14 @@ void CollisionSystem::resolve(
                 }
 
                 if (tank->cell() == cell) {
-                    tank->health().takeDamage(1);
+                    // Куля пошкоджує танк, якщо маски дійшли до прямого контакту.
+                    const bool damaged = tank->receiveDamage(1);
 
-                    if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
-                        if (enemy->health().isAlive())
-                            enemy->triggerHitFeedback();
+                    if (damaged) {
+                        if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+                            if (enemy->health().isAlive())
+                                enemy->triggerHitFeedback();
+                        }
                     }
 
                     destroyBullet = true;
@@ -104,4 +75,53 @@ void CollisionSystem::resolve(
         if (destroyBullet)
             bullet->destroy(spawnBulletExplosion);
     }
+}
+
+bool CollisionSystem::handleBulletMapCollision(
+    Bullet& bullet,
+    Map& map,
+    Base* base,
+    GameState& state,
+    bool& spawnBulletExplosion)
+{
+    const QPoint cell = bullet.cell();
+
+    if (!map.isInside(cell)) {
+        return true;
+    }
+
+    const Tile tile = map.tile(cell);
+    const bool bulletCanPierce = bullet.canPierceSteel();
+
+    // Маска BlockBullet визначає, чи взагалі куля повинна зупинятися на тайлі.
+    // Це дозволяє описувати винятки (наприклад, ліс не блокує кулі) на рівні даних.
+    if (!(tile.blockMask & BlockBullet))
+        return false;
+
+    if (tile.destructible) {
+        Tile& tileRef = map.tileRef(cell);
+        tileRef.takeDamage(1);
+        if (tileRef.isDestroyed()) {
+            map.setTile(cell, TileFactory::empty());
+        }
+    } else if (bulletCanPierce && tile.pierceable) {
+        Tile& tileRef = map.tileRef(cell);
+        tileRef.takeDamage(1);
+        if (tileRef.isDestroyed()) {
+            map.setTile(cell, TileFactory::empty());
+        }
+        return false;
+    }
+
+    if (base && cell == base->cell()) {
+        // База поводиться як звичайний тайл: CollisionSystem лише делегує шкоду власнику.
+        base->takeDamage();
+
+        if (base->isDestroyed() && !state.isBaseDestroyed()) {
+            state.setBaseDestroyed();
+            map.setTile(cell, TileFactory::empty());
+        }
+    }
+
+    return true;
 }

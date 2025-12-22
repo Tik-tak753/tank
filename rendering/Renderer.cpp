@@ -6,23 +6,39 @@
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
+#include <QGraphicsView>
 #include <QFont>
 #include <QPen>
 #include <QSet>
 #include <QtGlobal>
 #include <algorithm>
 #include <utility>
+#include <QString>
 
 #include "core/Game.h"
 #include "gameplay/Bullet.h"
 #include "gameplay/Tank.h"
 #include "gameplay/EnemyTank.h"
+#include "gameplay/PlayerTank.h"
+#include "gameplay/Bonus.h"
 #include "rendering/Camera.h"
 #include "rendering/SpriteManager.h"
 #include "utils/Constants.h"
 #include "world/Base.h"
 #include "world/Map.h"
 #include "world/Tile.h"
+
+namespace {
+const QColor kHudLabelColor(210, 210, 210);
+const QColor kHudLivesColor(230, 190, 60);
+const QColor kHudEnemyColor(210, 70, 70);
+const QColor kHudStatusColor(200, 200, 200);
+
+QString toCssColor(const QColor& color)
+{
+    return color.name(QColor::HexRgb);
+}
+} // namespace
 
 Renderer::Renderer(QGraphicsScene* scene)
     : m_scene(scene)
@@ -39,19 +55,61 @@ void Renderer::setCamera(Camera* camera)
     m_camera = camera;
 }
 
-void Renderer::renderFrame(const Game& game)
+void Renderer::renderFrame(const Game& game, qreal alpha)
 {
     if (!m_scene)
         return;
 
+    updateRenderTransform(game);
     updateBaseBlinking(game);
     clearMapLayer();     // DEBUG ONLY
     drawMap(game);       // reflect runtime tile changes
 
-    syncTanks(game);
-    syncBullets(game);
+    syncBonuses(game);
+    syncTanks(game, alpha);
+    syncBullets(game, alpha);
     updateExplosions();
     updateHud(game);
+}
+
+void Renderer::updateRenderTransform(const Game& game)
+{
+    const Map* map = game.map();
+    if (!m_scene || !map)
+        return;
+
+    QGraphicsView* view = m_scene->views().isEmpty() ? nullptr : m_scene->views().first();
+    if (!view || !view->viewport())
+        return;
+
+    const QSize viewportSize = view->viewport()->size();
+    if (viewportSize.isEmpty())
+        return;
+
+    const QSize mapSize = map->size();
+    if (mapSize.isEmpty())
+        return;
+
+    const qreal viewportWidth = static_cast<qreal>(viewportSize.width());
+    const qreal viewportHeight = static_cast<qreal>(viewportSize.height());
+    const qreal mapWidthTiles = static_cast<qreal>(mapSize.width());
+    const qreal mapHeightTiles = static_cast<qreal>(mapSize.height());
+
+    const qreal scale = std::min(viewportWidth / mapWidthTiles, viewportHeight / mapHeightTiles);
+    if (scale <= 0.0)
+        return;
+
+    m_tileScale = scale;
+
+    const qreal mapWidthInPixels = mapWidthTiles * m_tileScale;
+    const qreal mapHeightInPixels = mapHeightTiles * m_tileScale;
+    m_renderOffset = QPointF((viewportWidth - mapWidthInPixels) / 2.0,
+                             (viewportHeight - mapHeightInPixels) / 2.0);
+
+    if (m_camera)
+        m_camera->setTileSize(m_tileScale);
+
+    m_scene->setSceneRect(QRectF(QPointF(0.0, 0.0), QSizeF(viewportSize)));
 }
 
 void Renderer::drawMap(const Game& game)
@@ -77,10 +135,23 @@ void Renderer::drawMap(const Game& game)
                 continue;
 
             QColor color = Qt::gray;
+            qreal zValue = 0;
             if (tile.type == TileType::Brick)
                 color = QColor(193, 68, 14);
             if (tile.type == TileType::Steel)
                 color = QColor(160, 160, 160);
+            if (tile.type == TileType::Water) {
+                color = QColor(60, 120, 200);
+                zValue = 2;
+            }
+            if (tile.type == TileType::Ice) {
+                color = QColor(210, 230, 240);
+                zValue = 5;
+            }
+            if (tile.type == TileType::Forest) {
+                color = QColor(50, 120, 60, 210);
+                zValue = 15;
+            }
             if (tile.type == TileType::Base) {
                 const bool isBaseCell = (base && cell == baseCell);
                 if (isBaseCell && baseDestroyed) {
@@ -90,9 +161,9 @@ void Renderer::drawMap(const Game& game)
                 }
             }
 
-            const QPointF pos(static_cast<qreal>(x) * size, static_cast<qreal>(y) * size);
+            const QPointF pos = cellToScene(cell);
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
-            item->setZValue(0);
+            item->setZValue(zValue);
             m_mapItems.append(item);
 
             if (tile.type == TileType::Base && baseDestroyed && cell == baseCell) {
@@ -106,7 +177,59 @@ void Renderer::drawMap(const Game& game)
     }
 }
 
-void Renderer::syncTanks(const Game& game)
+void Renderer::syncBonuses(const Game& game)
+{
+    if (!m_scene)
+        return;
+
+    const qreal size = tileSize();
+    const qreal bonusSize = size * 0.6;
+    const QPointF offset((size - bonusSize) / 2.0, (size - bonusSize) / 2.0);
+    QSet<const Bonus*> seen;
+    auto brushForBonus = [](BonusType type) {
+        switch (type) {
+        case BonusType::Star: return QBrush(QColor(250, 220, 60));
+        case BonusType::Helmet: return QBrush(QColor(120, 200, 255));
+        case BonusType::Clock: return QBrush(QColor(160, 200, 255));
+        case BonusType::Grenade: return QBrush(QColor(230, 90, 80));
+        }
+        return QBrush(QColor(250, 220, 60));
+    };
+
+    for (Bonus* bonus : game.bonuses()) {
+        if (!bonus || bonus->isCollected())
+            continue;
+
+        seen.insert(bonus);
+        QGraphicsRectItem* item = m_bonusItems.value(bonus, nullptr);
+        if (!item) {
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bonusSize, bonusSize)), QPen(Qt::NoPen), brushForBonus(bonus->type()));
+            item->setZValue(8);
+            m_bonusItems.insert(bonus, item);
+        }
+
+        const QBrush brush = brushForBonus(bonus->type());
+        if (item->brush() != brush)
+            item->setBrush(brush);
+
+        const QPointF pos = cellToScene(bonus->cell()) + offset;
+        item->setPos(pos);
+    }
+
+    auto it = m_bonusItems.begin();
+    while (it != m_bonusItems.end()) {
+        if (!seen.contains(it.key())) {
+            QGraphicsItem* item = it.value();
+            m_scene->removeItem(item);
+            delete item;
+            it = m_bonusItems.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void Renderer::syncTanks(const Game& game, qreal alpha)
 {
     const qreal size = tileSize();
     const qreal barrelLength = size * 0.6;
@@ -128,6 +251,14 @@ void Renderer::syncTanks(const Game& game)
         return QRectF();
     };
 
+    auto playerColorForStars = [](int stars) {
+        if (stars >= PlayerTank::maxStars())
+            return QColor(255, 255, 170);
+        if (stars >= 1)
+            return QColor(245, 215, 110);
+        return QColor(230, 190, 60);
+    };
+
     for (Tank* tank : game.tanks()) {
         if (!tank)
             continue;
@@ -140,17 +271,18 @@ void Renderer::syncTanks(const Game& game)
 
             m_destroyedTanks.insert(tank);
 
-            QGraphicsRectItem* item = m_tankItems.take(tank);
-            if (item) {
+            auto removeItemSafely = [&](QGraphicsItem* item, const QString& reason) {
+                if (!item)
+                    return;
                 m_scene->removeItem(item);
                 delete item;
-            }
+            };
+
+            QGraphicsRectItem* item = m_tankItems.take(tank);
+            removeItemSafely(item, "Tank destroy");
 
             QGraphicsRectItem* directionItem = m_tankDirectionItems.take(tank);
-            if (directionItem) {
-                m_scene->removeItem(directionItem);
-                delete directionItem;
-            }
+            removeItemSafely(directionItem, "Tank destroy");
 
             continue;
         } else {
@@ -171,14 +303,17 @@ void Renderer::syncTanks(const Game& game)
         }
 
         QColor bodyColor(40, 160, 32);
-        if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
-            if (enemy->isHitFeedbackActive())
-                bodyColor = QColor(230, 230, 230);
+        if (tank == game.player()) {
+            bodyColor = playerColorForStars(game.playerStars());
+        } else if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
+            bodyColor = enemy->currentColor();
         }
         if (item->brush().color() != bodyColor)
             item->setBrush(bodyColor);
 
-        const QPointF pos = QPointF(tank->cell()) * size;
+        const QPointF interpolatedPosition = tank->previousRenderPosition()
+                                             + (tank->renderPosition() - tank->previousRenderPosition()) * alpha;
+        const QPointF pos = tileToScene(interpolatedPosition);
         item->setPos(pos);
         directionItem->setRect(barrelRectForDirection(tank->direction()));
         directionItem->setPos(pos);
@@ -217,7 +352,7 @@ void Renderer::syncTanks(const Game& game)
     }
 }
 
-void Renderer::syncBullets(const Game& game)
+void Renderer::syncBullets(const Game& game, qreal alpha)
 {
     const Map* map = game.map();
     const qreal size = tileSize();
@@ -227,8 +362,14 @@ void Renderer::syncBullets(const Game& game)
     const QPointF bulletOffset((size - bulletSize) / 2.0, (size - bulletSize) / 2.0);
 
     for (Bullet* bullet : game.bullets()) {
-        if (!bullet || !bullet->isAlive())
+        if (!bullet)
             continue;
+
+        if (!bullet->isAlive()) {
+            m_lastBulletCells.insert(bullet, bullet->cell());
+            m_lastBulletExplosions.insert(bullet, bullet->spawnExplosionOnDestroy());
+            continue;
+        }
 
         currentBullets.insert(bullet);
         QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
@@ -238,18 +379,26 @@ void Renderer::syncBullets(const Game& game)
             m_bulletItems.insert(bullet, item);
         }
 
-        const QPointF pos = QPointF(bullet->cell()) * size + bulletOffset;
+        const QColor bulletColor = bullet->canPierceSteel() ? QColor(255, 180, 60) : QColor(255, 235, 80);
+        if (item->brush().color() != bulletColor)
+            item->setBrush(QBrush(bulletColor));
+
+        const QPointF interpolatedPosition = bullet->previousRenderPosition()
+                                             + (bullet->renderPosition() - bullet->previousRenderPosition()) * alpha;
+        const QPointF pos = tileToScene(interpolatedPosition) + bulletOffset;
         item->setPos(pos);
         m_lastBulletCells.insert(bullet, bullet->cell());
+        m_lastBulletExplosions.insert(bullet, bullet->spawnExplosionOnDestroy());
     }
 
     for (const Bullet* bullet : m_previousBullets) {
         if (!currentBullets.contains(bullet)) {
             const QPoint cell = m_lastBulletCells.value(bullet, QPoint(-1, -1));
-            const bool shouldExplode = !bullet || bullet->spawnExplosionOnDestroy();
+            const bool shouldExplode = m_lastBulletExplosions.value(bullet, true);
             if (map && map->isInside(cell) && shouldExplode)
                 m_explosions.append(Explosion{cell, 12});
             m_lastBulletCells.remove(bullet);
+            m_lastBulletExplosions.remove(bullet);
         }
     }
 
@@ -273,6 +422,14 @@ void Renderer::syncBullets(const Game& game)
             ++cellIt;
     }
 
+    auto explodeIt = m_lastBulletExplosions.begin();
+    while (explodeIt != m_lastBulletExplosions.end()) {
+        if (!currentBullets.contains(explodeIt.key()))
+            explodeIt = m_lastBulletExplosions.erase(explodeIt);
+        else
+            ++explodeIt;
+    }
+
     m_previousBullets = currentBullets;
 }
 
@@ -288,11 +445,13 @@ void Renderer::updateHud(const Game& game)
     const qreal size = tileSize();
     const qreal hudMargin = size * 0.5;
     const qreal mapWidthInPixels = static_cast<qreal>(map->size().width()) * size;
-    const QPointF hudPosition(mapWidthInPixels + hudMargin, hudMargin);
+    const qreal hudX = std::min(m_renderOffset.x() + mapWidthInPixels + hudMargin,
+                                m_scene->sceneRect().width() - hudMargin);
+    const QPointF hudPosition(hudX, m_renderOffset.y() + hudMargin);
 
     if (!m_hudItem) {
         m_hudItem = m_scene->addText(QString());
-        m_hudItem->setDefaultTextColor(Qt::white);
+        m_hudItem->setDefaultTextColor(kHudLabelColor);
         QFont font = m_hudItem->font();
         font.setPointSize(16);
         m_hudItem->setFont(font);
@@ -304,13 +463,56 @@ void Renderer::updateHud(const Game& game)
 
     const int lives = game.state().remainingLives();
     const int enemyCount = game.state().aliveEnemies();
+    const int score = game.state().score();
+    const int stars = game.playerStars();
+    const int maxStars = PlayerTank::maxStars();
+    const QString scoreText = QStringLiteral("%1").arg(score, 7, 10, QLatin1Char('0'));
+    QString starsText;
+    starsText.reserve(maxStars);
+    for (int i = 0; i < maxStars; ++i) {
+        starsText.append(i < stars ? QStringLiteral("★") : QStringLiteral("☆"));
+    }
 
-    const QString text = QStringLiteral("LIVES: %1\nENEMIES: %2")
+    const QString labelColor = toCssColor(kHudLabelColor);
+    const QString livesColor = toCssColor(kHudLivesColor);
+    const QString enemyColor = toCssColor(kHudEnemyColor);
+    const QString statusColor = toCssColor(kHudStatusColor);
+    QString statusText;
+    switch (game.state().sessionState()) {
+    case GameSessionState::Running:
+        break;
+    case GameSessionState::GameOver:
+        statusText = QStringLiteral("GAME OVER");
+        break;
+    case GameSessionState::Victory:
+        statusText = QStringLiteral("STAGE CLEAR");
+        break;
+    }
+
+    const QString text = QStringLiteral(
+                             "<div style='color:%1;'>"
+                             "<span style='color:%1;'>LIVES:</span> <span style='color:%2;'>%3</span><br/>"
+                             "<span style='color:%1;'>STARS:</span> <span style='color:%1;'>%4</span><br/>"
+                             "<span style='color:%1;'>ENEMIES:</span> <span style='color:%5;'>%6</span><br/>"
+                             "<span style='color:%1;'>SCORE:</span> <span style='color:%2;'>%7</span>%8"
+                             "</div>")
+                             .arg(labelColor)
+                             .arg(livesColor)
                              .arg(lives)
-                             .arg(enemyCount);
+                             .arg(starsText)
+                             .arg(enemyColor)
+                             .arg(enemyCount)
+                             .arg(scoreText)
+                             .arg(statusText.isEmpty() ? QString() : QStringLiteral("<br/><span style='color:%1;'>%2</span>")
+                                                                                       .arg(statusColor)
+                                                                                       .arg(statusText));
 
-    if (m_hudItem->toPlainText() != text)
-        m_hudItem->setPlainText(text);
+    if (m_hudItem->toHtml() != text)
+        m_hudItem->setHtml(text);
+
+    if (m_lastHudStatus != statusText) {
+        m_lastHudStatus = statusText;
+    }
 }
 
 void Renderer::updateBaseBlinking(const Game& game)
@@ -368,9 +570,19 @@ void Renderer::clearMapLayer()
     m_mapItems.clear();
 }
 
+QPointF Renderer::cellToScene(const QPoint& cell) const
+{
+    return m_renderOffset + QPointF(cell) * tileSize();
+}
+
+QPointF Renderer::tileToScene(const QPointF& tile) const
+{
+    return m_renderOffset + tile * tileSize();
+}
+
 qreal Renderer::tileSize() const
 {
-    return static_cast<qreal>(m_camera ? m_camera->tileSize() : TILE_SIZE);
+    return m_tileScale;
 }
 
 void Renderer::updateExplosions()
@@ -393,7 +605,7 @@ void Renderer::updateExplosions()
     const QBrush brush(QColor(255, 140, 0));
 
     for (const Explosion& explosion : std::as_const(m_explosions)) {
-        const QPointF pos = QPointF(explosion.cell) * size + offset;
+        const QPointF pos = cellToScene(explosion.cell) + offset;
         QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(explosionSize, explosionSize)), QPen(Qt::NoPen), brush);
         item->setZValue(25);
         m_explosionItems.append(item);

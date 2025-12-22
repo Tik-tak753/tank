@@ -18,6 +18,7 @@ SOURCES += \
     core/GameRules.cpp \
     core/GameState.cpp \
     gameplay/Bullet.cpp \
+    gameplay/Bonus.cpp \
     gameplay/GameObject.cpp \
     gameplay/EnemyTank.cpp \
     gameplay/HealthSystem.cpp \
@@ -35,6 +36,7 @@ SOURCES += \
     rendering/SpriteManager.cpp \
     systems/CollisionSystem.cpp \
     systems/InputSystem.cpp \
+    systems/MenuSystem.cpp \
     systems/PhysicsSystem.cpp \
     systems/SoundSystem.cpp \
     world/Base.cpp \
@@ -57,6 +59,7 @@ HEADERS += \
     core/GameState.h \
     enums/enums.h \
     gameplay/Bullet.h \
+    gameplay/Bonus.h \
     gameplay/Direction.h \
     gameplay/GameObject.h \
     gameplay/EnemyTank.h \
@@ -75,6 +78,7 @@ HEADERS += \
     rendering/SpriteManager.h \
     systems/CollisionSystem.h \
     systems/InputSystem.h \
+    systems/MenuSystem.h \
     systems/PhysicsSystem.h \
     systems/SoundSystem.h \
     world/Base.h \

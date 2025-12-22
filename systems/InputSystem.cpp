@@ -3,6 +3,22 @@
 #include <algorithm>
 #include <Qt>
 
+std::optional<Direction> InputSystem::directionFromScanCode(quint32 scanCode)
+{
+    switch (scanCode) {
+    case 0x11: // W
+        return Direction::Up;
+    case 0x1F: // S
+        return Direction::Down;
+    case 0x1E: // A
+        return Direction::Left;
+    case 0x20: // D
+        return Direction::Right;
+    default:
+        return std::nullopt;
+    }
+}
+
 std::optional<Direction> InputSystem::directionFromKey(int key)
 {
     switch (key) {
@@ -25,12 +41,20 @@ std::optional<Direction> InputSystem::directionFromKey(int key)
 
 bool InputSystem::handleKeyPress(int key)
 {
+    return handleKeyPress(key, 0);
+}
+
+bool InputSystem::handleKeyPress(int key, quint32 scanCode)
+{
     if (key == Qt::Key_Space) {
         requestFire();
         return true;
     }
 
-    const std::optional<Direction> dir = directionFromKey(key);
+    const std::optional<Direction> dirFromScan = directionFromScanCode(scanCode);
+    const std::optional<Direction> dir = dirFromScan.has_value()
+        ? dirFromScan
+        : directionFromKey(key);
     if (!dir.has_value())
         return false;
 
@@ -40,10 +64,18 @@ bool InputSystem::handleKeyPress(int key)
 
 bool InputSystem::handleKeyRelease(int key)
 {
+    return handleKeyRelease(key, 0);
+}
+
+bool InputSystem::handleKeyRelease(int key, quint32 scanCode)
+{
     if (key == Qt::Key_Space)
         return true;
 
-    const std::optional<Direction> dir = directionFromKey(key);
+    const std::optional<Direction> dirFromScan = directionFromScanCode(scanCode);
+    const std::optional<Direction> dir = dirFromScan.has_value()
+        ? dirFromScan
+        : directionFromKey(key);
     if (!dir.has_value())
         return false;
 
@@ -70,6 +102,12 @@ bool InputSystem::consumeFire()
         return false;
     m_fireRequested = false;
     return true;
+}
+
+void InputSystem::clear()
+{
+    m_pressedDirections.clear();
+    m_fireRequested = false;
 }
 
 void InputSystem::pushDirection(Direction dir)

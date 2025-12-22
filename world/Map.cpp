@@ -30,6 +30,18 @@ Tile Map::tile(const QPoint& cell) const
     return m_tiles.at(y).at(x);
 }
 
+Tile& Map::tileRef(const QPoint& cell)
+{
+    if (!isInside(cell)) {
+        static Tile outOfBounds = TileFactory::steel();
+        return outOfBounds;
+    }
+
+    const qsizetype x = static_cast<qsizetype>(cell.x());
+    const qsizetype y = static_cast<qsizetype>(cell.y());
+    return m_tiles[y][x];
+}
+
 void Map::setTile(const QPoint& cell, const Tile& tile)
 {
     if (!isInside(cell))
@@ -42,14 +54,8 @@ void Map::setTile(const QPoint& cell, const Tile& tile)
 
 bool Map::isWalkable(const QPoint& cell) const
 {
+    // Рух танків обмежується лише маскою BlockTank.
+    // Таким чином дані карти вирішують, які клітинки є стінами, без гілок у коді руху.
     const Tile target = tile(cell);
-    switch (target.type) {
-    case TileType::Empty:
-        return true;
-    case TileType::Brick:
-    case TileType::Steel:
-    case TileType::Base:
-        return false;
-    }
-    return false;
+    return !(target.blockMask & BlockTank);
 }

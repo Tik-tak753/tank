@@ -9,10 +9,12 @@
 
 #include "core/GameState.h"
 #include "core/GameRules.h"
+#include "enums/enums.h"
 
 class Tank;
 class PlayerTank;
 class EnemyTank;
+class Bonus;
 class Bullet;
 class InputSystem;
 class LevelLoader;
@@ -39,27 +41,55 @@ public:
 
     // Крок оновлення (викликається MainWindow)
     void update(int deltaMs);
+    void startNewGame();
+    void pause();
+    void resume();
+    void enterMainMenu();
 
     const GameState& state() const { return m_state; }
     GameRules& rules() { return m_rules; }
 
     QList<Tank*> tanks() const { return m_tanks; }
     QList<Bullet*> bullets() const { return m_bullets; }
+    QList<Bonus*> bonuses() const { return m_bonuses; }
 
     Map* map() const { return m_map.get(); }
     Base* base() const { return m_base.get(); }
 
     void setInputSystem(InputSystem* input);
     PlayerTank* player() const { return m_player; }
+    int playerStars() const;
+    void addScoreForBonus();
+    void freezeEnemies(int durationMs);
+    void detonateEnemies();
 
 private:
     void clearWorld();
     void updateTanks(int deltaMs);
+    void updatePlayerRespawn(int deltaMs);
     void spawnPendingBullets();
-    void removeDeadTanks();
+    void updateBonuses(int deltaMs);
+    void updateBonusEffects(int deltaMs);
+    void cleanupDestroyed(bool removeBullets = true);
+    void evaluateSessionState();
+    void handleBonusCollection();
+    void trySpawnBonus();
+    void spawnBonusAtCell(const QPoint& cell);
+    bool canSpawnBonusAt(const QPoint& cell) const;
+    int rollBonusSpawnIntervalMs() const;
+    std::unique_ptr<Bonus> createRandomBonus(const QPoint& cell) const;
+    void cleanupBonuses();
+    void onEnemyDestroyed(EnemyTank& enemy);
+    void trySpawnPlayer();
     void updateEnemySpawning(int deltaMs);
     bool trySpawnEnemy();
+    EnemyType nextEnemyType();
+    void prepareEnemyQueue(int totalEnemies);
     bool canSpawnEnemyAt(const QPoint& cell) const;
+    bool canSpawnPlayerAt(const QPoint& cell) const;
+    void setSessionState(GameSessionState state);
+    void applyEnemyFreezeState();
+    bool hasActiveBonus() const;
 
     GameRules m_rules;
     GameState m_state;
@@ -72,6 +102,8 @@ private:
     QList<EnemyTank*> m_enemies;
     QList<Bullet*> m_bullets;
     std::vector<std::unique_ptr<Bullet>> m_pendingBullets;
+    QList<Bonus*> m_bonuses;
+    QList<EnemyType> m_enemySpawnOrder;
 
     InputSystem* m_inputSystem = nullptr;
     PlayerTank* m_player = nullptr;
@@ -80,10 +112,17 @@ private:
     std::unique_ptr<CollisionSystem> m_collisionSystem;
 
     QList<QPoint> m_enemySpawnPoints;
+    QPoint m_playerSpawnCell;
     qsizetype m_nextSpawnIndex = 0;
+    qsizetype m_nextEnemyTypeIndex = 0;
     int m_maxAliveEnemies = 0;
     int m_enemySpawnCooldownMs = 0;
     int m_enemyRespawnDelayMs = 800;
+    int m_playerRespawnDelayMs = 800;
+    int m_playerRespawnTimerMs = 0;
+    int m_bonusSpawnTimerMs = 0;
+    int m_enemyKillsSinceBonus = 0;
+    int m_enemyFreezeTimerMs = 0;
 };
 
 #endif // GAME_H

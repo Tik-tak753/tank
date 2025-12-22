@@ -10,8 +10,13 @@ void GameState::reset(int playerLives, int enemies)
 {
     m_playerLives = playerLives;
     m_enemiesLeft = enemies;
+    m_totalEnemies = enemies;
+    m_destroyedEnemies = 0;
     m_aliveEnemies = 0;
+    m_score = 0;
     m_baseDestroyed = false;
+    m_sessionState = GameSessionState::Running;
+    m_gameMode = GameMode::Playing;
 }
 
 void GameState::setBaseDestroyed()
@@ -31,12 +36,19 @@ void GameState::registerEnemyDestroyed()
 
     if (m_enemiesLeft > 0)
         --m_enemiesLeft;
+
+    ++m_destroyedEnemies;
 }
 
 void GameState::registerPlayerLostLife()
 {
     if (m_playerLives > 0)
         --m_playerLives;
+}
+
+void GameState::setSessionState(GameSessionState state)
+{
+    m_sessionState = state;
 }
 
 int GameState::remainingLives() const
@@ -59,17 +71,60 @@ int GameState::enemiesToSpawn() const
     return qMax(0, m_enemiesLeft - m_aliveEnemies);
 }
 
+int GameState::totalEnemies() const
+{
+    return m_totalEnemies;
+}
+
+int GameState::destroyedEnemies() const
+{
+    return m_destroyedEnemies;
+}
+
 bool GameState::isBaseDestroyed() const
 {
     return m_baseDestroyed;
 }
 
+int GameState::score() const
+{
+    return m_score;
+}
+
+GameSessionState GameState::sessionState() const
+{
+    return m_sessionState;
+}
+
+GameMode GameState::gameMode() const
+{
+    return m_gameMode;
+}
+
+void GameState::addScore(int points)
+{
+    m_score += points;
+}
+
+void GameState::resetScore()
+{
+    m_score = 0;
+}
+
+void GameState::setGameMode(GameMode mode)
+{
+    m_gameMode = mode;
+}
+
 bool GameState::isGameOver() const
 {
-    return m_baseDestroyed || m_playerLives <= 0;
+    if (m_gameMode == GameMode::MainMenu)
+        return false;
+
+    return m_sessionState == GameSessionState::GameOver || m_baseDestroyed || m_playerLives <= 0;
 }
 
 bool GameState::isVictory() const
 {
-    return !m_baseDestroyed && m_enemiesLeft == 0 && m_playerLives > 0;
+    return m_sessionState == GameSessionState::Victory || (!m_baseDestroyed && m_enemiesLeft == 0 && m_playerLives > 0);
 }

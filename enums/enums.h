@@ -7,4 +7,12 @@ enum TankType
     Enemy
 };
 
+enum class EnemyType
+{
+    Basic,
+    Fast,
+    Armored,
+    Power
+};
+
 #endif // ENUMS_H

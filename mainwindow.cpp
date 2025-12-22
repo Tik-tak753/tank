@@ -2,16 +2,16 @@
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
-#include <QGraphicsTextItem>
-#include <QFont>
 #include <QTimer>
 #include <QPoint>
 #include <QKeyEvent>
 #include <QSize>
-#include <QColor>
+#include <QResizeEvent>
+#include <QtGlobal>
 
 #include "core/Game.h"
 #include "systems/InputSystem.h"
+#include "systems/MenuSystem.h"
 #include "rendering/Renderer.h"
 #include "utils/Constants.h"
 
@@ -25,6 +25,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_scene = new QGraphicsScene(this);
 
     m_view = new QGraphicsView(m_scene, this);
+    m_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setCentralWidget(m_view);
     resize(800, 600);
     setFocusPolicy(Qt::StrongFocus);
@@ -42,7 +44,13 @@ MainWindow::MainWindow(QWidget *parent)
     rules.setBaseCell(QPoint(GRID_WIDTH / 2, GRID_HEIGHT - 2));
 
     m_game->setInputSystem(m_input.get());
-    m_game->initialize();
+
+    m_menuSystem = std::make_unique<MenuSystem>();
+    m_menuSystem->setGame(m_game.get());
+    m_menuSystem->setInputSystem(m_input.get());
+    m_menuSystem->setScene(m_scene);
+    m_menuSystem->setExitCallback([this]() { close(); });
+    m_menuSystem->showMainMenu();
 
     m_renderer = std::make_unique<Renderer>(m_scene);
 
@@ -50,32 +58,30 @@ MainWindow::MainWindow(QWidget *parent)
      * Timer / GameLoop
      * ===================== */
 
+    m_frameTimer.start();
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, [this]() {
-        const int deltaMs = 16; // ~60 FPS
-        m_game->update(deltaMs);
-        if (m_renderer)
-            m_renderer->renderFrame(*m_game);
+        const qint64 frameDeltaMs = m_frameTimer.restart();
+        m_frameAccumulatorMs += frameDeltaMs;
 
-        if (m_game && m_game->state().isBaseDestroyed() && !m_gameOverItem) {
-            m_gameOverItem = new QGraphicsTextItem(QStringLiteral("GAME OVER"));
-            QFont font = m_gameOverItem->font();
-            font.setPointSize(40);
-            m_gameOverItem->setFont(font);
-            m_gameOverItem->setDefaultTextColor(Qt::red);
-            m_gameOverItem->setZValue(1000);
-            m_scene->addItem(m_gameOverItem);
-
-            QRectF sceneRect = m_scene->sceneRect();
-            if (!sceneRect.isValid() || sceneRect.isNull())
-                sceneRect = m_scene->itemsBoundingRect();
-
-            const QRectF textRect = m_gameOverItem->boundingRect();
-            const QPointF centeredPos = sceneRect.center() - QPointF(textRect.width() / 2.0, textRect.height() / 2.0);
-            m_gameOverItem->setPos(centeredPos);
+        while (m_frameAccumulatorMs >= kFixedTickMs) {
+            if (m_game && (!m_menuSystem || !m_menuSystem->blocksGameplay()))
+                m_game->update(kFixedTickMs);
+            m_frameAccumulatorMs -= kFixedTickMs;
         }
+
+        if (m_menuSystem && m_game)
+            m_menuSystem->syncWithGameState(m_game->state());
+
+        const qreal alpha = static_cast<qreal>(m_frameAccumulatorMs) / static_cast<qreal>(kFixedTickMs);
+
+        if (m_renderer)
+            m_renderer->renderFrame(*m_game, alpha);
+
+        if (m_menuSystem)
+            m_menuSystem->renderMenus();
     });
-    m_timer->start(16);
+    m_timer->start(kFixedTickMs);
 }
 
 MainWindow::~MainWindow()
@@ -90,20 +96,15 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         return;
     }
 
-    if (event->key() == Qt::Key_R && m_game && m_game->state().isBaseDestroyed()) {
-        m_game->restart();
+    if (m_menuSystem && m_menuSystem->handleInput(*event))
+        return;
 
-        if (m_gameOverItem) {
-            m_scene->removeItem(m_gameOverItem);
-            delete m_gameOverItem;
-            m_gameOverItem = nullptr;
-        }
-
-        event->accept();
+    if (m_menuSystem && m_menuSystem->blocksGameplay()) {
+        QMainWindow::keyPressEvent(event);
         return;
     }
 
-    if (m_input && m_input->handleKeyPress(event->key())) {
+    if (m_input && m_input->handleKeyPress(event->key(), event->nativeScanCode())) {
         event->accept();
         return;
     }
@@ -118,10 +119,23 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
         return;
     }
 
-    if (m_input && m_input->handleKeyRelease(event->key())) {
+    if (m_menuSystem && m_menuSystem->blocksGameplay()) {
+        QMainWindow::keyReleaseEvent(event);
+        return;
+    }
+
+    if (m_input && m_input->handleKeyRelease(event->key(), event->nativeScanCode())) {
         event->accept();
         return;
     }
 
     QMainWindow::keyReleaseEvent(event);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+
+    if (m_menuSystem)
+        m_menuSystem->renderMenus();
 }
