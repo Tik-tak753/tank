@@ -25,6 +25,7 @@ SOURCES += \
     gameplay/PlayerTank.cpp \
     gameplay/Tank.cpp \
     gameplay/WeaponSystem.cpp \
+    LevelEditor.cpp \
     main.cpp \
     mainwindow.cpp \
     model/agent.cpp \
@@ -67,6 +68,7 @@ HEADERS += \
     gameplay/PlayerTank.h \
     gameplay/Tank.h \
     gameplay/WeaponSystem.h \
+    LevelEditor.h \
     mainwindow.h \
     model/agent.h \
     model/botagent.h \
