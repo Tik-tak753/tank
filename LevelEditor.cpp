@@ -114,6 +114,10 @@ void LevelEditor::placeTile(const QPoint& cell, TileType type)
     if (!map->isInside(cell))
         return;
 
+    const Tile existingTile = map->tile(cell);
+    if (existingTile.type == TileType::Base || type == TileType::Base)
+        return;
+
     map->setTile(cell, tileForType(type));
 }
 
@@ -158,7 +162,7 @@ TileType LevelEditor::selectedTileForKey(int key) const
     case Qt::Key_4: return TileType::Forest;
     case Qt::Key_5: return TileType::Water;
     case Qt::Key_6: return TileType::Ice;
-    case Qt::Key_7: return TileType::Base;
+    case Qt::Key_7: return m_selectedType;
     default:
         break;
     }
