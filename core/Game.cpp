@@ -16,6 +16,7 @@
 #include "world/Map.h"
 #include "world/Tile.h"
 #include <QRandomGenerator>
+#include <Qt>
 
 namespace {
 constexpr int kBonusSpawnIntervalMinMs = 15000;
@@ -112,6 +113,27 @@ void Game::resume()
         m_state.setGameMode(GameMode::Playing);
 }
 
+void Game::enterEditMode()
+{
+    if (!m_map)
+        return;
+
+    m_state.setGameMode(GameMode::Editing);
+    if (m_inputSystem)
+        m_inputSystem->clear();
+}
+
+void Game::exitEditMode()
+{
+    if (m_state.gameMode() != GameMode::Editing)
+        return;
+
+    m_state.setGameMode(GameMode::Playing);
+    if (m_inputSystem)
+        m_inputSystem->clear();
+    clearHoveredCell();
+}
+
 void Game::enterMainMenu()
 {
     clearWorld();
@@ -132,6 +154,41 @@ int Game::playerStars() const
         return 0;
 
     return m_player->stars();
+}
+
+void Game::selectEditorTile(TileType type)
+{
+    m_selectedTileType = type;
+}
+
+void Game::setHoveredCell(const QPoint& cell)
+{
+    if (!m_map || !m_map->isInside(cell)) {
+        clearHoveredCell();
+        return;
+    }
+
+    m_hoveredCell = cell;
+}
+
+void Game::clearHoveredCell()
+{
+    m_hoveredCell.reset();
+}
+
+void Game::applyEditorClick(const QPoint& cell, Qt::MouseButton button)
+{
+    if (!isEditMode() || !m_map)
+        return;
+
+    if (!m_map->isInside(cell))
+        return;
+
+    if (button == Qt::LeftButton) {
+        m_map->setTile(cell, tileForType(m_selectedTileType));
+    } else if (button == Qt::RightButton) {
+        m_map->setTile(cell, TileFactory::empty());
+    }
 }
 
 void Game::update(int deltaMs)
@@ -194,6 +251,8 @@ void Game::clearWorld()
     m_enemyKillsSinceBonus = 0;
     m_enemyFreezeTimerMs = 0;
     m_nextEnemyTypeIndex = 0;
+    clearHoveredCell();
+    m_selectedTileType = TileType::Brick;
 }
 
 void Game::updateTanks(int deltaMs)
@@ -623,6 +682,21 @@ bool Game::hasActiveBonus() const
     }
 
     return false;
+}
+
+Tile Game::tileForType(TileType type) const
+{
+    switch (type) {
+    case TileType::Empty: return TileFactory::empty();
+    case TileType::Brick: return TileFactory::brick();
+    case TileType::Steel: return TileFactory::steel();
+    case TileType::Base: return TileFactory::base();
+    case TileType::Forest: return TileFactory::forest();
+    case TileType::Water: return TileFactory::water();
+    case TileType::Ice: return TileFactory::ice();
+    }
+
+    return TileFactory::empty();
 }
 
 void Game::updatePlayerRespawn(int deltaMs)

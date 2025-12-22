@@ -118,7 +118,7 @@ void GameState::setGameMode(GameMode mode)
 
 bool GameState::isGameOver() const
 {
-    if (m_gameMode == GameMode::MainMenu)
+    if (m_gameMode == GameMode::MainMenu || m_gameMode == GameMode::Editing)
         return false;
 
     return m_sessionState == GameSessionState::GameOver || m_baseDestroyed || m_playerLives <= 0;
@@ -126,5 +126,8 @@ bool GameState::isGameOver() const
 
 bool GameState::isVictory() const
 {
+    if (m_gameMode == GameMode::Editing)
+        return false;
+
     return m_sessionState == GameSessionState::Victory || (!m_baseDestroyed && m_enemiesLeft == 0 && m_playerLives > 0);
 }

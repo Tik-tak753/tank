@@ -10,6 +10,8 @@ class QGraphicsView;
 class QTimer;
 class QKeyEvent;
 class QResizeEvent;
+class QEvent;
+class QMouseEvent;
 
 class Game;
 class InputSystem;
@@ -28,6 +30,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     static constexpr int kFixedTickMs = 16;
