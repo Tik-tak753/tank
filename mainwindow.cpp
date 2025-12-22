@@ -101,7 +101,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         return;
     }
 
-    if (m_input && m_input->handleKeyPress(event->key())) {
+    if (m_input && m_input->handleKeyPress(event->key(), event->nativeScanCode())) {
         event->accept();
         return;
     }
@@ -121,7 +121,7 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
         return;
     }
 
-    if (m_input && m_input->handleKeyRelease(event->key())) {
+    if (m_input && m_input->handleKeyRelease(event->key(), event->nativeScanCode())) {
         event->accept();
         return;
     }

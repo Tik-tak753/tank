@@ -10,6 +10,7 @@
 #include <QKeyEvent>
 #include <QPen>
 #include <QPointF>
+#include <QtGlobal>
 #include <QSizeF>
 #include <algorithm>
 
@@ -48,14 +49,17 @@ bool MenuSystem::blocksGameplay() const
 bool MenuSystem::handleInput(QKeyEvent& event)
 {
     const int key = event.key();
+    const quint32 scanCode = event.nativeScanCode();
+    const bool isUp = key == Qt::Key_Up || scanCode == 0x11;
+    const bool isDown = key == Qt::Key_Down || scanCode == 0x1F;
     const bool hasMenuEntries = m_state == MenuState::MainMenu
         || m_state == MenuState::PauseMenu
         || m_state == MenuState::GameOverMenu;
 
     if (hasMenuEntries) {
-        if (key == Qt::Key_Up || key == Qt::Key_Down) {
+        if (isUp || isDown) {
             if (!m_activeEntries.isEmpty()) {
-                const int direction = (key == Qt::Key_Up) ? -1 : 1;
+                const int direction = isUp ? -1 : 1;
                 m_selectedIndex = (m_selectedIndex + direction + m_activeEntries.size()) % m_activeEntries.size();
                 updateSelectionVisuals();
             }
