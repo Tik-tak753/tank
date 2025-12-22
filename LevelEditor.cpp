@@ -1,11 +1,17 @@
 #include "LevelEditor.h"
 
+#include <QFile>
+#include <QFileDialog>
 #include <QGraphicsView>
 #include <QKeyEvent>
+#include <QObject>
 #include <QMouseEvent>
 #include <QPoint>
 #include <QPointF>
 #include <QSize>
+#include <QRegularExpression>
+#include <QStringList>
+#include <QTextStream>
 #include <QtGlobal>
 #include <Qt>
 #include <algorithm>
@@ -77,6 +83,19 @@ bool LevelEditor::handleKeyPress(QKeyEvent& event)
 {
     if (!isActive())
         return false;
+
+    const bool ctrlHeld = event.modifiers() & Qt::ControlModifier;
+    if (ctrlHeld && event.key() == Qt::Key_S) {
+        saveCurrentMap();
+        event.accept();
+        return true;
+    }
+
+    if (ctrlHeld && (event.key() == Qt::Key_O || event.key() == Qt::Key_L)) {
+        loadMapFromFile();
+        event.accept();
+        return true;
+    }
 
     const TileType nextType = selectedTileForKey(event.key());
     if (nextType == m_selectedType)
@@ -245,4 +264,245 @@ TileType LevelEditor::selectedTileForKey(int key) const
 TileType LevelEditor::currentTileSelection() const
 {
     return m_selectedType;
+}
+
+bool LevelEditor::saveCurrentMap()
+{
+    if (!isActive())
+        return false;
+
+    const QString filePath = QFileDialog::getSaveFileName(
+        m_view, QObject::tr("Save Map"), QString(), QObject::tr("Text Files (*.txt);;All Files (*)"));
+    if (filePath.isEmpty())
+        return false;
+
+    return exportTiles(filePath);
+}
+
+bool LevelEditor::loadMapFromFile()
+{
+    if (!isActive())
+        return false;
+
+    const QString filePath = QFileDialog::getOpenFileName(
+        m_view, QObject::tr("Load Map"), QString(), QObject::tr("Text Files (*.txt);;All Files (*)"));
+    if (filePath.isEmpty())
+        return false;
+
+    return importTiles(filePath);
+}
+
+bool LevelEditor::exportTiles(const QString& filePath) const
+{
+    Map* map = currentMap();
+    if (!map)
+        return false;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return false;
+
+    QTextStream stream(&file);
+    const QSize size = map->size();
+    stream << size.width() << " " << size.height() << "\n";
+
+    const QVector<QVector<int>> matrix = buildTileMatrix();
+    for (const QVector<int>& row : matrix) {
+        for (qsizetype i = 0; i < row.size(); ++i) {
+            if (i > 0)
+                stream << " ";
+            stream << row.at(i);
+        }
+        stream << "\n";
+    }
+
+    return true;
+}
+
+bool LevelEditor::importTiles(const QString& filePath)
+{
+    Map* map = currentMap();
+    if (!map)
+        return false;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+
+    QTextStream stream(&file);
+    QVector<QVector<int>> rows;
+    QSize declaredSize = map->size();
+    bool sizeParsed = false;
+    int lineIndex = 0;
+
+    while (!stream.atEnd()) {
+        const QString line = stream.readLine();
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty()) {
+            ++lineIndex;
+            continue;
+        }
+
+        const QStringList parts = trimmed.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        if (!sizeParsed && parts.size() >= 2) {
+            bool okWidth = false;
+            bool okHeight = false;
+            const int width = parts.at(0).toInt(&okWidth);
+            const int height = parts.at(1).toInt(&okHeight);
+            if (okWidth && okHeight && width > 0 && height > 0) {
+                declaredSize = QSize(width, height);
+                sizeParsed = true;
+                ++lineIndex;
+                continue;
+            }
+        }
+
+        QVector<int> row;
+        row.reserve(parts.size());
+        for (const QString& part : parts) {
+            bool ok = false;
+            const int value = part.toInt(&ok);
+            if (!ok)
+                continue;
+            row.append(value);
+        }
+        if (!row.isEmpty())
+            rows.append(std::move(row));
+
+        ++lineIndex;
+    }
+
+    applyTileData(rows, declaredSize);
+    return true;
+}
+
+void LevelEditor::applyTileData(const QVector<QVector<int>>& rows, const QSize& declaredSize)
+{
+    Map* map = currentMap();
+    if (!map)
+        return;
+
+    Q_UNUSED(declaredSize);
+
+    const QSize mapSize = map->size();
+    const int width = mapSize.width();
+    const int height = mapSize.height();
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const QPoint cell(x, y);
+            if (isProtectedCell(cell))
+                continue;
+            map->setTile(cell, TileFactory::empty());
+        }
+    }
+
+    const int appliedHeight = std::min(height, rows.size());
+    for (int y = 0; y < appliedHeight; ++y) {
+        const QVector<int>& row = rows.at(y);
+        const int appliedWidth = std::min(width, row.size());
+        for (int x = 0; x < appliedWidth; ++x) {
+            const QPoint cell(x, y);
+            if (isProtectedCell(cell))
+                continue;
+
+            const int code = row.at(x);
+            const std::optional<TileType> type = tileTypeFromCode(code);
+            if (!type.has_value() || *type == TileType::Base)
+                continue;
+
+            map->setTile(cell, tileForType(*type));
+        }
+    }
+
+    restoreProtectedCells(*map);
+}
+
+void LevelEditor::restoreProtectedCells(Map& map) const
+{
+    const QSize mapSize = map.size();
+    const QPoint baseCell = m_game ? m_game->rules().baseCell() : QPoint();
+    if (map.isInside(baseCell))
+        map.setTile(baseCell, TileFactory::base());
+
+    const QPoint playerSpawn = defaultPlayerSpawn(mapSize, baseCell);
+    const QPoint leftOfBase(baseCell.x() - 1, baseCell.y());
+    const QPoint bottomCenter(std::clamp(mapSize.width() / 2, 0, mapSize.width() - 1),
+                              std::clamp(mapSize.height() - 2, 0, mapSize.height() - 1));
+    const std::array<QPoint, 3> playerCandidates = {playerSpawn, leftOfBase, bottomCenter};
+    for (const QPoint& candidate : playerCandidates) {
+        if (!map.isInside(candidate))
+            continue;
+        if (map.tile(candidate).type == TileType::Base)
+            continue;
+        map.setTile(candidate, TileFactory::empty());
+        break;
+    }
+
+    const std::array<QPoint, 3> enemySpawns = defaultEnemySpawns(mapSize);
+    for (const QPoint& spawn : enemySpawns) {
+        if (!map.isInside(spawn))
+            continue;
+        if (map.tile(spawn).type == TileType::Base)
+            continue;
+        map.setTile(spawn, TileFactory::empty());
+    }
+}
+
+QVector<QVector<int>> LevelEditor::buildTileMatrix() const
+{
+    QVector<QVector<int>> rows;
+    Map* map = currentMap();
+    if (!map)
+        return rows;
+
+    const QSize mapSize = map->size();
+    rows.resize(mapSize.height());
+
+    for (int y = 0; y < mapSize.height(); ++y) {
+        QVector<int>& row = rows[y];
+        row.resize(mapSize.width());
+        for (int x = 0; x < mapSize.width(); ++x) {
+            const QPoint cell(x, y);
+            const Tile tile = map->tile(cell);
+            if (tile.type == TileType::Base || isProtectedCell(cell)) {
+                row[x] = tileCode(TileType::Empty);
+                continue;
+            }
+            row[x] = tileCode(tile.type);
+        }
+    }
+
+    return rows;
+}
+
+int LevelEditor::tileCode(TileType type) const
+{
+    switch (type) {
+    case TileType::Empty: return 0;
+    case TileType::Brick: return 1;
+    case TileType::Steel: return 2;
+    case TileType::Forest: return 3;
+    case TileType::Water: return 4;
+    case TileType::Ice: return 5;
+    case TileType::Base: return -1;
+    }
+
+    return 0;
+}
+
+std::optional<TileType> LevelEditor::tileTypeFromCode(int code)
+{
+    switch (code) {
+    case 0: return TileType::Empty;
+    case 1: return TileType::Brick;
+    case 2: return TileType::Steel;
+    case 3: return TileType::Forest;
+    case 4: return TileType::Water;
+    case 5: return TileType::Ice;
+    default:
+        break;
+    }
+
+    return std::nullopt;
 }
