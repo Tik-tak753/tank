@@ -9,6 +9,7 @@
 #include <QtGlobal>
 #include <Qt>
 #include <algorithm>
+#include <array>
 
 #include "core/Game.h"
 #include "core/GameState.h"
@@ -29,6 +30,31 @@ Tile tileForType(TileType type)
     }
 
     Q_UNREACHABLE();
+}
+
+QPoint defaultPlayerSpawn(const QSize& size, const QPoint& baseCell)
+{
+    const QPoint leftOfBase(baseCell.x() - 1, baseCell.y());
+    if (leftOfBase.x() >= 0 && leftOfBase.x() < size.width() &&
+        leftOfBase.y() >= 0 && leftOfBase.y() < size.height()) {
+        return leftOfBase;
+    }
+
+    return QPoint(std::clamp(size.width() / 2, 0, size.width() - 1),
+                  std::clamp(size.height() - 2, 0, size.height() - 1));
+}
+
+std::array<QPoint, 3> defaultEnemySpawns(const QSize& size)
+{
+    const int maxX = std::max(0, size.width() - 1);
+    const int maxY = std::max(0, size.height() - 1);
+    const int y = std::clamp(1, 0, maxY);
+
+    const int left = std::clamp(1, 0, maxX);
+    const int center = std::clamp(size.width() / 2, 0, maxX);
+    const int right = std::clamp(size.width() - 2, 0, maxX);
+
+    return {QPoint(left, y), QPoint(center, y), QPoint(right, y)};
 }
 } // namespace
 
@@ -114,11 +140,57 @@ void LevelEditor::placeTile(const QPoint& cell, TileType type)
     if (!map->isInside(cell))
         return;
 
+    if (isProtectedCell(cell))
+        return;
+
     const Tile existingTile = map->tile(cell);
     if (existingTile.type == TileType::Base || type == TileType::Base)
         return;
 
     map->setTile(cell, tileForType(type));
+}
+
+bool LevelEditor::isProtectedCell(const QPoint& cell) const
+{
+    Map* map = currentMap();
+    if (!map)
+        return false;
+
+    if (!map->isInside(cell))
+        return false;
+
+    const QSize mapSize = map->size();
+    const QPoint baseCell = m_game ? m_game->rules().baseCell() : QPoint();
+    const QPoint playerSpawn = defaultPlayerSpawn(mapSize, baseCell);
+    const QPoint leftOfBase(baseCell.x() - 1, baseCell.y());
+    const QPoint bottomCenter(std::clamp(mapSize.width() / 2, 0, mapSize.width() - 1),
+                              std::clamp(mapSize.height() - 2, 0, mapSize.height() - 1));
+    const std::array<QPoint, 3> playerCandidates = {playerSpawn, leftOfBase, bottomCenter};
+
+    for (const QPoint& candidate : playerCandidates) {
+        if (!map->isInside(candidate))
+            continue;
+
+        const Tile tile = map->tile(candidate);
+        if (tile.type == TileType::Base)
+            continue;
+
+        if (cell == candidate)
+            return true;
+
+        break;
+    }
+
+    const std::array<QPoint, 3> enemySpawns = defaultEnemySpawns(mapSize);
+    for (const QPoint& spawn : enemySpawns) {
+        if (!map->isInside(spawn))
+            continue;
+
+        if (cell == spawn)
+            return true;
+    }
+
+    return false;
 }
 
 std::optional<QPoint> LevelEditor::sceneToCell(const QPointF& scenePos) const
