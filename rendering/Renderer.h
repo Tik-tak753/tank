@@ -41,10 +41,12 @@ public:
     void setCamera(Camera* camera);
 
     void renderFrame(const Game& game, qreal alpha);
+    bool scenePosToCell(const QPointF& scenePos, const Game& game, QPoint& cell) const;
 
 private:
     void initializeMap(const Game& game);
     void drawMap(const Game& game);
+    void drawEditOverlay(const Game& game);
     void syncBonuses(const Game& game);
     void syncTanks(const Game& game, qreal alpha);
     void syncBullets(const Game& game, qreal alpha);
@@ -63,6 +65,8 @@ private:
 
     const Map* m_cachedMap = nullptr;
     QList<QGraphicsItem*> m_mapItems;
+    QList<QGraphicsItem*> m_gridItems;
+    QGraphicsRectItem* m_hoverItem = nullptr;
     QHash<const Tank*, QGraphicsRectItem*> m_tankItems;
     QHash<const Tank*, QGraphicsRectItem*> m_tankDirectionItems;
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
