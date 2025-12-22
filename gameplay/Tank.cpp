@@ -1,6 +1,7 @@
 #include "gameplay/Tank.h"
 
 #include "gameplay/Bullet.h"
+#include <QtGlobal>
 
 namespace {
 constexpr int kDefaultDeltaMs = 16;
@@ -9,10 +10,12 @@ constexpr int kDestructionDelayMs = 350;
 
 Tank::Tank(const QPoint& cell)
     : GameObject(QPointF(cell))
+    , m_cell(cell)
 {
     m_health.setMaxHealth(1);
     m_health.setLives(1);
     m_weapon.setReloadTime(400);
+    setSpeed(m_speed);
 }
 
 TankType Tank::getType()
@@ -28,6 +31,7 @@ void Tank::setType(TankType type)
 void Tank::setSpeed(float speed)
 {
     m_speed = speed;
+    m_stepIntervalMs = stepIntervalMsForSpeed(speed);
 }
 
 void Tank::markDestroyed()
@@ -53,6 +57,46 @@ void Tank::updateWithDelta(int deltaMs)
 
     // базовий танк лише відраховує перезарядку
     m_weapon.tick(deltaMs);
+}
+
+int Tank::stepIntervalMsForSpeed(float speed) const
+{
+    if (speed <= 0.0f)
+        return 0;
+
+    constexpr int kMillisPerSecond = 1000;
+    const float tilesPerSecond = speed;
+    const float stepsPerSecond = tilesPerSecond * kStepsPerTile;
+    return qMax(1, static_cast<int>(kMillisPerSecond / stepsPerSecond));
+}
+
+void Tank::setCell(const QPoint& cell)
+{
+    m_cell = cell;
+    m_position = QPointF(cell);
+    resetSubTileProgress();
+}
+
+void Tank::resetSubTileProgress()
+{
+    m_subTileProgress = 0;
+}
+
+QPoint Tank::directionDelta(Direction dir)
+{
+    switch (dir) {
+    case Direction::Up:    return QPoint(0, -1);
+    case Direction::Down:  return QPoint(0, 1);
+    case Direction::Left:  return QPoint(-1, 0);
+    case Direction::Right: return QPoint(1, 0);
+    }
+    return QPoint(0, 0);
+}
+
+void Tank::updateRenderPosition(Direction dir)
+{
+    const QPointF offset = QPointF(directionDelta(dir)) * (static_cast<qreal>(m_subTileProgress) / kStepsPerTile);
+    m_position = QPointF(m_cell) + offset;
 }
 
 std::unique_ptr<Bullet> Tank::tryShoot()

@@ -41,7 +41,6 @@ private:
 
     InputSystem* m_input = nullptr;
     const Map* m_map = nullptr;
-    float m_moveAccumulator = 0.0f;
     bool m_sliding = false;
     int m_stars = 0;
     int m_invincibilityTimerMs = 0;
