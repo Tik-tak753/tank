@@ -119,6 +119,13 @@ void Game::enterMainMenu()
     m_state.setGameMode(GameMode::MainMenu);
 }
 
+void Game::enterEditor()
+{
+    clearWorld();
+    m_state.setSessionState(GameSessionState::Running);
+    m_state.setGameMode(GameMode::Editing);
+}
+
 void Game::setInputSystem(InputSystem* input)
 {
     m_inputSystem = input;
