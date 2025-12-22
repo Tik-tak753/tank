@@ -6,6 +6,7 @@
 #include <QPoint>
 #include <QKeyEvent>
 #include <QSize>
+#include <QResizeEvent>
 #include <QtGlobal>
 
 #include "core/Game.h"
@@ -24,6 +25,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_scene = new QGraphicsScene(this);
 
     m_view = new QGraphicsView(m_scene, this);
+    m_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setCentralWidget(m_view);
     resize(800, 600);
     setFocusPolicy(Qt::StrongFocus);
@@ -127,4 +130,12 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
     }
 
     QMainWindow::keyReleaseEvent(event);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+
+    if (m_menuSystem)
+        m_menuSystem->renderMenus();
 }

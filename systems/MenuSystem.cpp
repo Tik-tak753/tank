@@ -429,17 +429,17 @@ QRectF MenuSystem::sceneRect() const
 
     QGraphicsView* view = m_scene->views().isEmpty() ? nullptr : m_scene->views().first();
     if (view && view->viewport()) {
-        const QSize viewportSize = view->viewport()->size();
-        if (!viewportSize.isEmpty())
-            return QRectF(QPointF(0.0, 0.0), QSizeF(viewportSize));
+        const QRectF viewSceneRect = view->mapToScene(view->viewport()->rect()).boundingRect();
+        if (viewSceneRect.isValid() && !viewSceneRect.isNull())
+            return viewSceneRect;
     }
 
-    QRectF rect = m_scene->sceneRect();
+    const QRectF sceneRect = m_scene->sceneRect();
 
-    if (!rect.isValid() || rect.isNull())
-        rect = m_scene->itemsBoundingRect();
+    if (sceneRect.isValid() && !sceneRect.isNull())
+        return sceneRect;
 
-    return rect;
+    return m_scene->itemsBoundingRect();
 }
 
 void MenuSystem::clearGameOverOverlay()

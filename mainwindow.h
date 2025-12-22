@@ -9,6 +9,7 @@ class QGraphicsScene;
 class QGraphicsView;
 class QTimer;
 class QKeyEvent;
+class QResizeEvent;
 
 class Game;
 class InputSystem;
@@ -26,6 +27,7 @@ public:
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     static constexpr int kFixedTickMs = 16;
