@@ -19,6 +19,7 @@ public:
 
     void requestFire();
     bool consumeFire();
+    void clear();
 
 private:
     static std::optional<Direction> directionFromKey(int key);

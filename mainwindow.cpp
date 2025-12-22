@@ -43,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
     rules.setBaseCell(QPoint(GRID_WIDTH / 2, GRID_HEIGHT - 2));
 
     m_game->setInputSystem(m_input.get());
-    m_game->initialize();
+    m_game->enterMainMenu();
 
     m_renderer = std::make_unique<Renderer>(m_scene);
 
@@ -85,6 +85,8 @@ MainWindow::MainWindow(QWidget *parent)
             const QPointF centeredPos = sceneRect.center() - QPointF(textRect.width() / 2.0, textRect.height() / 2.0);
             m_gameOverItem->setPos(centeredPos);
         }
+
+        updateMenuOverlays();
     });
     m_timer->start(kFixedTickMs);
 }
@@ -94,6 +96,120 @@ MainWindow::~MainWindow()
     // Qt удалит QObject-детей автоматически
 }
 
+void MainWindow::startGame()
+{
+    if (!m_game)
+        return;
+
+    if (m_input)
+        m_input->clear();
+
+    m_game->startNewGame();
+    clearGameOverOverlay();
+}
+
+void MainWindow::pauseGame()
+{
+    if (!m_game)
+        return;
+
+    if (m_input)
+        m_input->clear();
+
+    m_game->pause();
+}
+
+void MainWindow::resumeGame()
+{
+    if (!m_game)
+        return;
+
+    if (m_input)
+        m_input->clear();
+
+    m_game->resume();
+}
+
+void MainWindow::returnToMainMenu()
+{
+    if (!m_game)
+        return;
+
+    if (m_input)
+        m_input->clear();
+
+    m_game->enterMainMenu();
+    clearGameOverOverlay();
+}
+
+void MainWindow::updateMenuOverlays()
+{
+    if (!m_scene)
+        return;
+
+    const GameMode mode = m_game ? m_game->state().gameMode() : GameMode::MainMenu;
+
+    auto ensureOverlay = [&](QGraphicsTextItem*& item, const QString& text) {
+        if (!item) {
+            item = m_scene->addText(text);
+            item->setDefaultTextColor(Qt::white);
+            QFont font = item->font();
+            font.setPointSize(28);
+            item->setFont(font);
+            item->setZValue(2000);
+        }
+        if (item->toPlainText() != text)
+            item->setPlainText(text);
+        item->setVisible(true);
+    };
+
+    auto hideOverlay = [](QGraphicsTextItem* item) {
+        if (item)
+            item->setVisible(false);
+    };
+
+    if (mode == GameMode::MainMenu) {
+        ensureOverlay(m_mainMenuItem, QStringLiteral("BATTLE CITY\n\nStart Game - Enter\nExit - Esc"));
+        hideOverlay(m_pauseMenuItem);
+    } else if (mode == GameMode::Paused) {
+        ensureOverlay(m_pauseMenuItem, QStringLiteral("PAUSED\n\nResume - Esc\nRestart Level - R\nMain Menu - M"));
+        hideOverlay(m_mainMenuItem);
+    } else {
+        hideOverlay(m_mainMenuItem);
+        hideOverlay(m_pauseMenuItem);
+    }
+
+    auto centerItem = [&](QGraphicsTextItem* item) {
+        if (!item || !item->isVisible())
+            return;
+
+        QRectF sceneRect = m_scene->sceneRect();
+        if ((!sceneRect.isValid() || sceneRect.isNull()) && !m_scene->views().isEmpty() && m_scene->views().first()->viewport())
+            sceneRect = QRectF(QPointF(0.0, 0.0), QSizeF(m_scene->views().first()->viewport()->size()));
+        if (!sceneRect.isValid() || sceneRect.isNull())
+            sceneRect = m_scene->itemsBoundingRect();
+
+        const QRectF textRect = item->boundingRect();
+        const QPointF centeredPos = sceneRect.center() - QPointF(textRect.width() / 2.0, textRect.height() / 2.0);
+        item->setPos(centeredPos);
+    };
+
+    centerItem(m_mainMenuItem);
+    centerItem(m_pauseMenuItem);
+
+    if (mode == GameMode::MainMenu && m_gameOverItem)
+        clearGameOverOverlay();
+}
+
+void MainWindow::clearGameOverOverlay()
+{
+    if (m_gameOverItem) {
+        m_scene->removeItem(m_gameOverItem);
+        delete m_gameOverItem;
+        m_gameOverItem = nullptr;
+    }
+}
+
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     if (event->isAutoRepeat()) {
@@ -101,20 +217,60 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         return;
     }
 
-    if (event->key() == Qt::Key_R && m_game && (m_game->state().isGameOver() || m_game->state().isVictory())) {
-        m_game->restart();
+    const GameMode mode = m_game ? m_game->state().gameMode() : GameMode::MainMenu;
 
-        if (m_gameOverItem) {
-            m_scene->removeItem(m_gameOverItem);
-            delete m_gameOverItem;
-            m_gameOverItem = nullptr;
+    if (mode == GameMode::MainMenu) {
+        if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter || event->key() == Qt::Key_Space) {
+            startGame();
+            event->accept();
+            return;
         }
 
+        if (event->key() == Qt::Key_Escape) {
+            close();
+            event->accept();
+            return;
+        }
+    }
+
+    if (mode == GameMode::Paused) {
+        if (event->key() == Qt::Key_Escape) {
+            resumeGame();
+            event->accept();
+            return;
+        }
+        if (event->key() == Qt::Key_R) {
+            startGame();
+            event->accept();
+            return;
+        }
+        if (event->key() == Qt::Key_M) {
+            returnToMainMenu();
+            event->accept();
+            return;
+        }
+    }
+
+    if (mode == GameMode::GameOver) {
+        if (event->key() == Qt::Key_R) {
+            startGame();
+            event->accept();
+            return;
+        }
+        if (event->key() == Qt::Key_M) {
+            returnToMainMenu();
+            event->accept();
+            return;
+        }
+    }
+
+    if (mode == GameMode::Playing && event->key() == Qt::Key_Escape) {
+        pauseGame();
         event->accept();
         return;
     }
 
-    if (m_input && m_input->handleKeyPress(event->key())) {
+    if (mode == GameMode::Playing && m_input && m_input->handleKeyPress(event->key())) {
         event->accept();
         return;
     }
@@ -129,7 +285,8 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
         return;
     }
 
-    if (m_input && m_input->handleKeyRelease(event->key())) {
+    const GameMode mode = m_game ? m_game->state().gameMode() : GameMode::MainMenu;
+    if (mode == GameMode::Playing && m_input && m_input->handleKeyRelease(event->key())) {
         event->accept();
         return;
     }

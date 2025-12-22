@@ -41,6 +41,10 @@ public:
 
     // Крок оновлення (викликається MainWindow)
     void update(int deltaMs);
+    void startNewGame();
+    void pause();
+    void resume();
+    void enterMainMenu();
 
     const GameState& state() const { return m_state; }
     GameRules& rules() { return m_rules; }
