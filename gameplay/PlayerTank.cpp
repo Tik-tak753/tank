@@ -18,15 +18,26 @@ bool shouldSlideOnIce(const Map* map, const QPoint& cell, Direction direction)
     const QPoint nextCell = cell + Tank::directionDelta(direction);
     return map->isWalkable(nextCell);
 }
+
+// Рух і швидкість пострілів підігнані під NES-версію:
+// базовий танк минає плитку приблизно за 256 мс (3.9 плитки/с),
+// зірки піднімають темп до 4.5 / 5.2 / 5.8 плиток/с,
+// кулі летять удвічі швидше (130 мс) і прискорюються до 110 / 95 / 85 мс зі зірками.
+constexpr float kStar1SpeedTilesPerSecond = 4.5f;
+constexpr float kStar2SpeedTilesPerSecond = 5.2f;
+constexpr float kStar3SpeedTilesPerSecond = 5.8f;
+
+constexpr int kStar1BulletStepIntervalMs = 110;
+constexpr int kStar2BulletStepIntervalMs = 95;
+constexpr int kStar3BulletStepIntervalMs = 85;
 }
 
 PlayerTank::PlayerTank(const QPoint& cell)
     : Tank(cell)
 {
     m_health.setLives(3);
-    m_speed = 1.5f;
-    setSpeed(m_speed);
     setType(TankType::Player);
+    setSpeed(movementSpeedTilesPerSecond());
     applyUpgrades();
 }
 
@@ -114,10 +125,7 @@ void PlayerTank::updateWithDelta(int deltaMs)
 
 int PlayerTank::bulletStepIntervalMs() const
 {
-    if (m_stars >= 1)
-        return 80;
-
-    return Tank::bulletStepIntervalMs();
+    return bulletStepIntervalForStars();
 }
 
 bool PlayerTank::bulletCanPierceSteel() const
@@ -127,6 +135,7 @@ bool PlayerTank::bulletCanPierceSteel() const
 
 void PlayerTank::applyUpgrades()
 {
+    setSpeed(movementSpeedTilesPerSecond());
     m_weapon.setReloadTime(reloadTimeMs());
 }
 
@@ -154,6 +163,30 @@ void PlayerTank::activateInvincibility(int durationMs)
 void PlayerTank::tickBonusEffects(int deltaMs)
 {
     updateInvincibility(deltaMs);
+}
+
+float PlayerTank::movementSpeedTilesPerSecond() const
+{
+    if (m_stars >= 3)
+        return kStar3SpeedTilesPerSecond;
+    if (m_stars == 2)
+        return kStar2SpeedTilesPerSecond;
+    if (m_stars == 1)
+        return kStar1SpeedTilesPerSecond;
+
+    return kDefaultTilesPerSecond;
+}
+
+int PlayerTank::bulletStepIntervalForStars() const
+{
+    if (m_stars >= 3)
+        return kStar3BulletStepIntervalMs;
+    if (m_stars == 2)
+        return kStar2BulletStepIntervalMs;
+    if (m_stars == 1)
+        return kStar1BulletStepIntervalMs;
+
+    return Tank::bulletStepIntervalMs();
 }
 
 void PlayerTank::updateInvincibility(int deltaMs)
