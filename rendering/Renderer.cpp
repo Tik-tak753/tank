@@ -67,7 +67,7 @@ void Renderer::renderFrame(const Game& game, qreal alpha)
 
     syncBonuses(game);
     syncTanks(game, alpha);
-    syncBullets(game);
+    syncBullets(game, alpha);
     updateExplosions();
     updateHud(game);
 }
@@ -355,7 +355,7 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
     }
 }
 
-void Renderer::syncBullets(const Game& game)
+void Renderer::syncBullets(const Game& game, qreal alpha)
 {
     const Map* map = game.map();
     const qreal size = tileSize();
@@ -386,7 +386,9 @@ void Renderer::syncBullets(const Game& game)
         if (item->brush().color() != bulletColor)
             item->setBrush(QBrush(bulletColor));
 
-        const QPointF pos = cellToScene(bullet->cell()) + bulletOffset;
+        const QPointF interpolatedPosition = bullet->previousRenderPosition()
+                                             + (bullet->renderPosition() - bullet->previousRenderPosition()) * alpha;
+        const QPointF pos = tileToScene(interpolatedPosition) + bulletOffset;
         item->setPos(pos);
         m_lastBulletCells.insert(bullet, bullet->cell());
         m_lastBulletExplosions.insert(bullet, bullet->spawnExplosionOnDestroy());

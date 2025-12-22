@@ -47,7 +47,7 @@ private:
     void drawMap(const Game& game);
     void syncBonuses(const Game& game);
     void syncTanks(const Game& game, qreal alpha);
-    void syncBullets(const Game& game);
+    void syncBullets(const Game& game, qreal alpha);
     void updateExplosions();
     void updateHud(const Game& game);
     void updateBaseBlinking(const Game& game);
