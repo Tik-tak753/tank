@@ -2,6 +2,7 @@
 #define TANK_H
 
 #include <QPoint>
+#include <QPointF>
 #include <memory>
 
 #include "gameplay/Direction.h"
@@ -36,6 +37,8 @@ public:
     void markDestroyed();
 
     QPoint cell() const { return m_cell; }
+    QPointF renderPosition() const { return m_renderPositionCurrent; }
+    QPointF previousRenderPosition() const { return m_renderPositionPrevious; }
     void setCell(const QPoint& cell);
 
     Direction direction() const { return m_direction; }
@@ -65,6 +68,7 @@ protected:
     bool isAlignedToGrid() const { return m_subTileProgress == 0; }
     void resetSubTileProgress();
     void updateRenderPosition(Direction dir);
+    void syncRenderPositions(bool resetPrevious = true);
 
     static QPoint directionDelta(Direction dir);
 
@@ -72,6 +76,8 @@ protected:
     float m_speed = kDefaultTilesPerSecond;
 
     QPoint m_cell;
+    QPointF m_renderPositionCurrent;
+    QPointF m_renderPositionPrevious;
 
     int m_stepIntervalMs = 0;
     int m_stepAccumulatorMs = 0;

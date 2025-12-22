@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QElapsedTimer>
 #include <memory>
 
 class QGraphicsScene;
@@ -27,6 +28,8 @@ protected:
     void keyReleaseEvent(QKeyEvent *event) override;
 
 private:
+    static constexpr int kFixedTickMs = 16;
+
     // View / Scene
     QGraphicsScene* m_scene = nullptr;
     QGraphicsView* m_view = nullptr;
@@ -39,6 +42,8 @@ private:
 
     // Timer
     QTimer* m_timer = nullptr;
+    qint64 m_frameAccumulatorMs = 0;
+    QElapsedTimer m_frameTimer;
 };
 
 #endif // MAINWINDOW_H

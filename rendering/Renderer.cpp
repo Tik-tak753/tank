@@ -55,7 +55,7 @@ void Renderer::setCamera(Camera* camera)
     m_camera = camera;
 }
 
-void Renderer::renderFrame(const Game& game)
+void Renderer::renderFrame(const Game& game, qreal alpha)
 {
     if (!m_scene)
         return;
@@ -66,7 +66,7 @@ void Renderer::renderFrame(const Game& game)
     drawMap(game);       // reflect runtime tile changes
 
     syncBonuses(game);
-    syncTanks(game);
+    syncTanks(game, alpha);
     syncBullets(game);
     updateExplosions();
     updateHud(game);
@@ -229,7 +229,7 @@ void Renderer::syncBonuses(const Game& game)
     }
 }
 
-void Renderer::syncTanks(const Game& game)
+void Renderer::syncTanks(const Game& game, qreal alpha)
 {
     const qreal size = tileSize();
     const qreal barrelLength = size * 0.6;
@@ -314,7 +314,9 @@ void Renderer::syncTanks(const Game& game)
         if (item->brush().color() != bodyColor)
             item->setBrush(bodyColor);
 
-        const QPointF pos = cellToScene(tank->cell());
+        const QPointF interpolatedPosition = tank->previousRenderPosition()
+                                             + (tank->renderPosition() - tank->previousRenderPosition()) * alpha;
+        const QPointF pos = tileToScene(interpolatedPosition);
         item->setPos(pos);
         directionItem->setRect(barrelRectForDirection(tank->direction()));
         directionItem->setPos(pos);
@@ -572,6 +574,11 @@ void Renderer::clearMapLayer()
 QPointF Renderer::cellToScene(const QPoint& cell) const
 {
     return m_renderOffset + QPointF(cell) * tileSize();
+}
+
+QPointF Renderer::tileToScene(const QPointF& tile) const
+{
+    return m_renderOffset + tile * tileSize();
 }
 
 qreal Renderer::tileSize() const
