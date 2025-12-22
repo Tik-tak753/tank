@@ -32,6 +32,7 @@ private:
     bool isActive() const;
     Map* currentMap() const;
     void placeTile(const QPoint& cell, TileType type);
+    bool isProtectedCell(const QPoint& cell) const;
     std::optional<QPoint> sceneToCell(const QPointF& scenePos) const;
     TileType selectedTileForKey(int key) const;
     TileType currentTileSelection() const;
