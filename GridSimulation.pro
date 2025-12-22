@@ -36,6 +36,7 @@ SOURCES += \
     rendering/SpriteManager.cpp \
     systems/CollisionSystem.cpp \
     systems/InputSystem.cpp \
+    systems/MenuSystem.cpp \
     systems/PhysicsSystem.cpp \
     systems/SoundSystem.cpp \
     world/Base.cpp \
@@ -77,6 +78,7 @@ HEADERS += \
     rendering/SpriteManager.h \
     systems/CollisionSystem.h \
     systems/InputSystem.h \
+    systems/MenuSystem.h \
     systems/PhysicsSystem.h \
     systems/SoundSystem.h \
     world/Base.h \
