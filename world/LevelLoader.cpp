@@ -71,6 +71,123 @@ std::optional<TileType> tileTypeFromCode(int code)
 
     return std::nullopt;
 }
+
+bool parseNumericLevel(QTextStream& stream, const GameRules& rules, QSize& declaredSize, QVector<QVector<int>>& rows)
+{
+    declaredSize = rules.mapSize();
+    bool sizeParsed = false;
+
+    while (!stream.atEnd()) {
+        const QString line = stream.readLine();
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty())
+            continue;
+
+        const QStringList parts = trimmed.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        if (!sizeParsed && parts.size() >= 2) {
+            bool okWidth = false;
+            bool okHeight = false;
+            const int width = parts.at(0).toInt(&okWidth);
+            const int height = parts.at(1).toInt(&okHeight);
+            if (okWidth && okHeight && width > 0 && height > 0) {
+                declaredSize = QSize(width, height);
+                sizeParsed = true;
+                continue;
+            }
+        }
+
+        QVector<int> row;
+        row.reserve(parts.size());
+        for (const QString& part : parts) {
+            bool ok = false;
+            const int value = part.toInt(&ok);
+            if (!ok)
+                continue;
+            row.append(value);
+        }
+
+        if (!row.isEmpty())
+            rows.append(std::move(row));
+    }
+
+    return sizeParsed || !rows.isEmpty();
+}
+
+LevelData loadLevelFromNumeric(const QVector<QVector<int>>& rows, const QSize& declaredSize, const GameRules& rules, LevelData fallback)
+{
+    const QSize mapSize = rules.mapSize();
+    LevelData data;
+    data.map = std::make_unique<Map>(mapSize);
+    data.baseCell = rules.baseCell();
+    data.playerSpawn = defaultPlayerSpawn(mapSize, data.baseCell);
+    const std::array<QPoint, 3> spawnDefaults = defaultEnemySpawns(mapSize);
+    for (const QPoint& spawn : spawnDefaults)
+        data.enemySpawns.append(spawn);
+    data.loadedFromFile = true;
+
+    const int width = mapSize.width();
+    const int height = mapSize.height();
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const QPoint cell(x, y);
+            data.map->setTile(cell, TileFactory::empty());
+        }
+    }
+
+    const int appliedHeight = std::min({height, declaredSize.height(), static_cast<int>(rows.size())});
+    for (int y = 0; y < appliedHeight; ++y) {
+        const QVector<int>& row = rows.at(y);
+        const int appliedWidth = std::min({width, declaredSize.width(), static_cast<int>(row.size())});
+        for (int x = 0; x < appliedWidth; ++x) {
+            const int code = row.at(x);
+            const std::optional<TileType> type = tileTypeFromCode(code);
+            if (!type.has_value() || *type == TileType::Base)
+                continue;
+
+            const QPoint cell(x, y);
+            data.map->setTile(cell, tileForType(*type));
+        }
+    }
+
+    if (data.map->isInside(data.baseCell))
+        data.map->setTile(data.baseCell, TileFactory::base());
+
+    const QPoint leftOfBase(data.baseCell.x() - 1, data.baseCell.y());
+    const QPoint bottomCenter(std::clamp(mapSize.width() / 2, 0, mapSize.width() - 1),
+                              std::clamp(mapSize.height() - 2, 0, mapSize.height() - 1));
+    const std::array<QPoint, 3> spawnCandidates = {
+        data.playerSpawn,
+        leftOfBase,
+        bottomCenter,
+    };
+
+    for (const QPoint& candidate : spawnCandidates) {
+        if (!data.map->isInside(candidate))
+            continue;
+
+        Tile tile = data.map->tile(candidate);
+        if (tile.type == TileType::Base)
+            continue;
+
+        data.map->setTile(candidate, TileFactory::empty());
+        data.playerSpawn = candidate;
+        break;
+    }
+
+    const std::array<QPoint, 3> enemySpawns = defaultEnemySpawns(mapSize);
+    data.enemySpawns.clear();
+    for (const QPoint& spawn : enemySpawns) {
+        if (!data.map->isInside(spawn))
+            continue;
+        if (data.map->tile(spawn).type == TileType::Base)
+            continue;
+        data.map->setTile(spawn, TileFactory::empty());
+        data.enemySpawns.append(spawn);
+    }
+
+    return data.map ? data : fallback;
+}
 } // namespace
 
 LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& rules) const
@@ -165,6 +282,66 @@ LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& r
     return data;
 }
 
+namespace {
+QString mapsDirectory()
+{
+    return QStringLiteral("assets/maps");
+}
+
+QStringList scanLevelFiles()
+{
+    const QDir dir(mapsDirectory());
+    QStringList entries = dir.entryList(QStringList() << QStringLiteral("Level*.txt"), QDir::Files, QDir::Name);
+    entries.sort(Qt::CaseInsensitive);
+    return entries;
+}
+} // namespace
+
+LevelData LevelLoader::loadLevelByName(const QString& fileName, const GameRules& rules) const
+{
+    const LevelData fallback = loadDefaultLevel(rules);
+
+    const QString baseDir = mapsDirectory();
+    const QFileInfo info(QDir(baseDir).filePath(fileName));
+    if (!info.exists() || !info.isReadable())
+        return fallback;
+
+    QFile file(info.absoluteFilePath());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return fallback;
+
+    QTextStream stream(&file);
+    QVector<QVector<int>> rows;
+    QSize declaredSize;
+    if (parseNumericLevel(stream, rules, declaredSize, rows)) {
+        return loadLevelFromNumeric(rows, declaredSize, rules, fallback);
+    }
+
+    file.seek(0);
+    QStringList lines;
+    while (!stream.atEnd())
+        lines.append(stream.readLine());
+
+    LevelData data = loadFromText(lines, rules);
+    data.loadedFromFile = true;
+    return data.map ? data : fallback;
+}
+
+LevelData LevelLoader::loadLevelByIndex(int index, const GameRules& rules) const
+{
+    const QStringList files = scanLevelFiles();
+    if (files.isEmpty())
+        return loadDefaultLevel(rules);
+
+    const int clampedIndex = std::clamp(index, 0, files.size() - 1);
+    return loadLevelByName(files.at(clampedIndex), rules);
+}
+
+QStringList LevelLoader::availableLevelFiles() const
+{
+    return scanLevelFiles();
+}
+
 LevelData LevelLoader::loadSavedLevel(const GameRules& rules) const
 {
     LevelData fallback = loadDefaultLevel(rules);
@@ -218,117 +395,11 @@ LevelData LevelLoader::loadSavedLevel(const GameRules& rules) const
 
     QTextStream stream(&file);
     QVector<QVector<int>> rows;
-    QSize declaredSize = rules.mapSize();
-    bool sizeParsed = false;
-
-    while (!stream.atEnd()) {
-        const QString line = stream.readLine();
-        const QString trimmed = line.trimmed();
-        if (trimmed.isEmpty())
-            continue;
-
-        const QStringList parts = trimmed.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-        if (!sizeParsed && parts.size() >= 2) {
-            bool okWidth = false;
-            bool okHeight = false;
-            const int width = parts.at(0).toInt(&okWidth);
-            const int height = parts.at(1).toInt(&okHeight);
-            if (okWidth && okHeight && width > 0 && height > 0) {
-                declaredSize = QSize(width, height);
-                sizeParsed = true;
-                continue;
-            }
-        }
-
-        QVector<int> row;
-        row.reserve(parts.size());
-        for (const QString& part : parts) {
-            bool ok = false;
-            const int value = part.toInt(&ok);
-            if (!ok)
-                continue;
-            row.append(value);
-        }
-
-        if (!row.isEmpty())
-            rows.append(std::move(row));
-    }
-
-    if (!sizeParsed && rows.isEmpty())
+    QSize declaredSize;
+    if (!parseNumericLevel(stream, rules, declaredSize, rows))
         return fallback;
 
-    const QSize mapSize = rules.mapSize();
-    LevelData data;
-    data.map = std::make_unique<Map>(mapSize);
-    data.baseCell = rules.baseCell();
-    data.playerSpawn = defaultPlayerSpawn(mapSize, data.baseCell);
-    const std::array<QPoint, 3> spawnDefaults = defaultEnemySpawns(mapSize);
-    for (const QPoint& spawn : spawnDefaults)
-        data.enemySpawns.append(spawn);
-    data.loadedFromFile = true;
-
-    const int width = mapSize.width();
-    const int height = mapSize.height();
-
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            const QPoint cell(x, y);
-            data.map->setTile(cell, TileFactory::empty());
-        }
-    }
-
-    const int appliedHeight = std::min({height, declaredSize.height(), static_cast<int>(rows.size())});
-    for (int y = 0; y < appliedHeight; ++y) {
-        const QVector<int>& row = rows.at(y);
-        const int appliedWidth = std::min({width, declaredSize.width(), static_cast<int>(row.size())});
-        for (int x = 0; x < appliedWidth; ++x) {
-            const int code = row.at(x);
-            const std::optional<TileType> type = tileTypeFromCode(code);
-            if (!type.has_value() || *type == TileType::Base)
-                continue;
-
-            const QPoint cell(x, y);
-            data.map->setTile(cell, tileForType(*type));
-        }
-    }
-
-    if (data.map->isInside(data.baseCell))
-        data.map->setTile(data.baseCell, TileFactory::base());
-
-    const QPoint leftOfBase(data.baseCell.x() - 1, data.baseCell.y());
-    const QPoint bottomCenter(std::clamp(mapSize.width() / 2, 0, mapSize.width() - 1),
-                              std::clamp(mapSize.height() - 2, 0, mapSize.height() - 1));
-    const std::array<QPoint, 3> spawnCandidates = {
-        data.playerSpawn,
-        leftOfBase,
-        bottomCenter,
-    };
-
-    for (const QPoint& candidate : spawnCandidates) {
-        if (!data.map->isInside(candidate))
-            continue;
-
-        Tile tile = data.map->tile(candidate);
-        if (tile.type == TileType::Base)
-            continue;
-
-        data.map->setTile(candidate, TileFactory::empty());
-        data.playerSpawn = candidate;
-        break;
-    }
-
-    const std::array<QPoint, 3> enemySpawns = defaultEnemySpawns(mapSize);
-    data.enemySpawns.clear();
-    for (const QPoint& spawn : enemySpawns) {
-        if (!data.map->isInside(spawn))
-            continue;
-        if (data.map->tile(spawn).type == TileType::Base)
-            continue;
-        data.map->setTile(spawn, TileFactory::empty());
-        data.enemySpawns.append(spawn);
-    }
-
-    return data;
+    return loadLevelFromNumeric(rows, declaredSize, rules, fallback);
 }
 
 LevelData LevelLoader::loadDefaultLevel(const GameRules& rules) const

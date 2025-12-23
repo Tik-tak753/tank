@@ -40,6 +40,11 @@ void Game::startNewGame()
     initialize();
 }
 
+void Game::setPendingLevelIndex(int index)
+{
+    m_pendingLevelIndex = index;
+}
+
 void Game::initialize()
 {
     // На цьому кроці в майбутньому будемо створювати карту, танки та базу.
@@ -54,7 +59,13 @@ void Game::initialize()
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
 
-    LevelData level = m_levelLoader->loadSavedLevel(m_rules);
+    LevelData level;
+    if (m_pendingLevelIndex.has_value()) {
+        level = m_levelLoader->loadLevelByIndex(*m_pendingLevelIndex, m_rules);
+        m_pendingLevelIndex.reset();
+    } else {
+        level = m_levelLoader->loadSavedLevel(m_rules);
+    }
     m_map = std::move(level.map);
 
     if (!level.loadedFromFile) {
