@@ -28,6 +28,7 @@ struct Explosion
 {
     QPoint cell;
     int ttlFrames;
+    int totalFrames;
 };
 
 /*

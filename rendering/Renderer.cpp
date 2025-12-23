@@ -36,6 +36,9 @@ const QColor kHudLabelColor(210, 210, 210);
 const QColor kHudLivesColor(230, 190, 60);
 const QColor kHudEnemyColor(210, 70, 70);
 const QColor kHudStatusColor(200, 200, 200);
+constexpr int kExplosionFrameCount = 3;
+constexpr qreal kExplosionMinScale = 0.35;
+constexpr qreal kExplosionMaxScale = 0.95;
 
 QString toCssColor(const QColor& color)
 {
@@ -450,7 +453,7 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
 
         if (tank->isDestroyed()) {
             if (!m_destroyedTanks.contains(tank))
-                m_explosions.append(Explosion{tank->cell(), 12});
+                m_explosions.append(Explosion{tank->cell(), kExplosionFrameCount, kExplosionFrameCount});
 
             m_destroyedTanks.insert(tank);
 
@@ -545,10 +548,9 @@ void Renderer::syncBullets(const Game& game, qreal alpha)
 {
     const Map* map = game.map();
     const qreal size = tileSize();
-    const qreal bulletSize = size / 2.0;
     QSet<const Bullet*> currentBullets;
-
-    const QPointF bulletOffset((size - bulletSize) / 2.0, (size - bulletSize) / 2.0);
+    const qreal bulletLength = size * 0.9;
+    const qreal bulletThickness = std::max<qreal>(size * 0.15, 2.0);
 
     for (Bullet* bullet : game.bullets()) {
         if (!bullet)
@@ -561,12 +563,18 @@ void Renderer::syncBullets(const Game& game, qreal alpha)
         }
 
         currentBullets.insert(bullet);
+        const bool vertical = bullet->direction() == Direction::Up || bullet->direction() == Direction::Down;
+        const QSizeF bulletShape = vertical ? QSizeF(bulletThickness, bulletLength) : QSizeF(bulletLength, bulletThickness);
+        const QPointF bulletOffset((size - bulletShape.width()) / 2.0, (size - bulletShape.height()) / 2.0);
         QGraphicsRectItem* item = m_bulletItems.value(bullet, nullptr);
         if (!item) {
-            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bulletSize, bulletSize)), QPen(Qt::NoPen), QBrush(Qt::yellow));
+            item = m_scene->addRect(QRectF(QPointF(0, 0), bulletShape), QPen(Qt::NoPen), QBrush(Qt::yellow));
             item->setZValue(20);
             m_bulletItems.insert(bullet, item);
         }
+
+        if (item->rect().size() != bulletShape)
+            item->setRect(QRectF(QPointF(0, 0), bulletShape));
 
         const QColor bulletColor = bullet->canPierceSteel() ? QColor(255, 180, 60) : QColor(255, 235, 80);
         if (item->brush().color() != bulletColor)
@@ -585,7 +593,7 @@ void Renderer::syncBullets(const Game& game, qreal alpha)
             const QPoint cell = m_lastBulletCells.value(bullet, QPoint(-1, -1));
             const bool shouldExplode = m_lastBulletExplosions.value(bullet, true);
             if (map && map->isInside(cell) && shouldExplode)
-                m_explosions.append(Explosion{cell, 12});
+                m_explosions.append(Explosion{cell, kExplosionFrameCount, kExplosionFrameCount});
             m_lastBulletCells.remove(bullet);
             m_lastBulletExplosions.remove(bullet);
         }
@@ -776,12 +784,6 @@ qreal Renderer::tileSize() const
 
 void Renderer::updateExplosions()
 {
-    for (Explosion& explosion : m_explosions)
-        --explosion.ttlFrames;
-
-    auto it = std::remove_if(m_explosions.begin(), m_explosions.end(), [](const Explosion& e) { return e.ttlFrames <= 0; });
-    m_explosions.erase(it, m_explosions.end());
-
     for (QGraphicsRectItem* item : m_explosionItems) {
         m_scene->removeItem(item);
         delete item;
@@ -789,14 +791,41 @@ void Renderer::updateExplosions()
     m_explosionItems.clear();
 
     const qreal size = tileSize();
-    const qreal explosionSize = size * 0.7;
-    const QPointF offset((size - explosionSize) / 2.0, (size - explosionSize) / 2.0);
-    const QBrush brush(QColor(255, 140, 0));
 
-    for (const Explosion& explosion : std::as_const(m_explosions)) {
-        const QPointF pos = cellToScene(explosion.cell) + offset;
-        QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(explosionSize, explosionSize)), QPen(Qt::NoPen), brush);
-        item->setZValue(25);
-        m_explosionItems.append(item);
+    for (Explosion& explosion : m_explosions) {
+        if (explosion.ttlFrames <= 0)
+            continue;
+
+        const int frameIndex = explosion.totalFrames - explosion.ttlFrames;
+        const int frameCount = std::max(1, explosion.totalFrames);
+        const qreal frameProgress = frameCount > 1 ? static_cast<qreal>(frameIndex) / static_cast<qreal>(frameCount - 1) : 1.0;
+
+        const qreal explosionScale = kExplosionMinScale + (kExplosionMaxScale - kExplosionMinScale) * frameProgress;
+        const qreal explosionSize = size * explosionScale;
+        const QPointF center = cellToScene(explosion.cell) + QPointF(size / 2.0, size / 2.0);
+        const QPointF topLeft = center - QPointF(explosionSize / 2.0, explosionSize / 2.0);
+
+        const QColor outerColor = QColor::fromRgbF(1.0, 0.8 - 0.25 * frameProgress, 0.25 + 0.2 * frameProgress);
+        QGraphicsRectItem* core = m_scene->addRect(QRectF(topLeft, QSizeF(explosionSize, explosionSize)), QPen(Qt::NoPen), QBrush(outerColor));
+        core->setZValue(25);
+        m_explosionItems.append(core);
+
+        const qreal flashThickness = explosionSize * 0.35;
+        const QBrush flashBrush(QColor(255, 245, 180, 220));
+
+        const QPointF horizontalPos(center.x() - explosionSize / 2.0, center.y() - flashThickness / 2.0);
+        QGraphicsRectItem* horizontal = m_scene->addRect(QRectF(horizontalPos, QSizeF(explosionSize, flashThickness)), QPen(Qt::NoPen), flashBrush);
+        horizontal->setZValue(26);
+        m_explosionItems.append(horizontal);
+
+        const QPointF verticalPos(center.x() - flashThickness / 2.0, center.y() - explosionSize / 2.0);
+        QGraphicsRectItem* vertical = m_scene->addRect(QRectF(verticalPos, QSizeF(flashThickness, explosionSize)), QPen(Qt::NoPen), flashBrush);
+        vertical->setZValue(26);
+        m_explosionItems.append(vertical);
+
+        --explosion.ttlFrames;
     }
+
+    auto it = std::remove_if(m_explosions.begin(), m_explosions.end(), [](const Explosion& e) { return e.ttlFrames <= 0; });
+    m_explosions.erase(it, m_explosions.end());
 }
