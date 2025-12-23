@@ -289,7 +289,7 @@ LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& r
 namespace {
 QString mapsDirectory()
 {
-    return QStringLiteral("assets/maps");
+    return QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(QStringLiteral("assets/maps"));
 }
 
 QStringList scanLevelFiles()
