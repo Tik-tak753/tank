@@ -34,6 +34,7 @@ SOURCES += \
     rendering/Animation.cpp \
     rendering/Camera.cpp \
     rendering/HudItem.cpp \
+    rendering/EditorOverlayItem.cpp \
     rendering/Renderer.cpp \
     rendering/SpriteManager.cpp \
     systems/CollisionSystem.cpp \
@@ -78,6 +79,7 @@ HEADERS += \
     rendering/Animation.h \
     rendering/Camera.h \
     rendering/HudItem.h \
+    rendering/EditorOverlayItem.h \
     rendering/Renderer.h \
     rendering/SpriteManager.h \
     systems/CollisionSystem.h \

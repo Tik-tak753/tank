@@ -17,6 +17,7 @@ class InputSystem;
 class MenuSystem;
 class Renderer;
 class LevelEditor;
+class EditorOverlayItem;
 
 class MainWindow : public QMainWindow
 {
@@ -34,6 +35,7 @@ protected:
 
 private:
     static constexpr int kFixedTickMs = 16;
+    void updateEditorOverlay();
 
     // View / Scene
     QGraphicsScene* m_scene = nullptr;
@@ -45,6 +47,7 @@ private:
     std::unique_ptr<MenuSystem> m_menuSystem;
     std::unique_ptr<Renderer> m_renderer;
     std::unique_ptr<LevelEditor> m_levelEditor;
+    EditorOverlayItem* m_editorOverlay = nullptr;
 
     // Timer
     QTimer* m_timer = nullptr;

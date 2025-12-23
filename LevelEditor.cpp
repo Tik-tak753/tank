@@ -79,6 +79,19 @@ void LevelEditor::setView(QGraphicsView* view)
     m_view = view;
 }
 
+TileType LevelEditor::selectedTile() const
+{
+    return m_selectedType;
+}
+
+void LevelEditor::setSelectedTile(TileType type)
+{
+    if (type == TileType::Base)
+        return;
+
+    m_selectedType = type;
+}
+
 bool LevelEditor::handleKeyPress(QKeyEvent& event)
 {
     if (!isActive())
