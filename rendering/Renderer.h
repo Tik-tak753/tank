@@ -59,6 +59,7 @@ private:
     void clearMapLayer();
     qreal tileSize() const;
     QBrush tileBrush(int tileType, qreal size);
+    QBrush baseTileBrush(bool destroyed, bool blinkPhase, qreal size);
     void rebuildTileBrushes(qreal size);
 
     QGraphicsScene* m_scene = nullptr;

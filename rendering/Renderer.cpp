@@ -168,11 +168,10 @@ void Renderer::drawMap(const Game& game)
             }
             if (tile.type == TileType::Base) {
                 const bool isBaseCell = (base && cell == baseCell);
-                if (isBaseCell && baseDestroyed) {
-                    color = QColor(60, 60, 60);
-                } else {
-                    color = (blinkPhase && isBaseCell) ? QColor(220, 40, 40) : QColor(230, 230, 0);
-                }
+                const bool destroyedBaseTile = isBaseCell && baseDestroyed;
+                const bool blinkingBase = isBaseCell && blinkPhase;
+                color = destroyedBaseTile ? QColor(60, 60, 60) : QColor(230, 230, 0);
+                brush = baseTileBrush(destroyedBaseTile, blinkingBase, size);
             }
 
             const QPointF pos = cellToScene(cell);
@@ -182,14 +181,6 @@ void Renderer::drawMap(const Game& game)
             QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), fillBrush);
             item->setZValue(zValue);
             m_mapItems.append(item);
-
-            if (tile.type == TileType::Base && baseDestroyed && cell == baseCell) {
-                const qreal markerMargin = size * 0.25;
-                const QRectF markerRect(pos + QPointF(markerMargin, markerMargin), QSizeF(size - 2 * markerMargin, size - 2 * markerMargin));
-                QGraphicsRectItem* marker = m_scene->addRect(markerRect, QPen(Qt::NoPen), QBrush(QColor(30, 30, 30)));
-                marker->setZValue(1);
-                m_mapItems.append(marker);
-            }
         }
     }
 }
@@ -198,6 +189,78 @@ QBrush Renderer::tileBrush(int tileType, qreal size)
 {
     rebuildTileBrushes(size);
     return m_tileBrushes.value(tileType, QBrush());
+}
+
+QBrush Renderer::baseTileBrush(bool destroyed, bool blinkPhase, qreal size)
+{
+    const int intSize = qMax(1, qRound(size));
+    const quint64 key = (static_cast<quint64>(intSize) << 2)
+                        | (destroyed ? 0x1 : 0x0)
+                        | (blinkPhase ? 0x2 : 0x0);
+    static QHash<quint64, QBrush> cache;
+    const auto cached = cache.constFind(key);
+    if (cached != cache.constEnd())
+        return cached.value();
+
+    QPixmap pixmap(intSize, intSize);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, false);
+    painter.setPen(Qt::NoPen);
+
+    const QColor borderColor = destroyed ? QColor(40, 40, 40) : QColor(100, 80, 20);
+    const QColor plateColor = destroyed ? QColor(65, 65, 65) : (blinkPhase ? QColor(205, 40, 40) : QColor(230, 210, 60));
+    const QColor emblemColor = destroyed ? QColor(180, 180, 180) : QColor(30, 30, 30);
+    const QColor accentColor = destroyed ? QColor(110, 110, 110) : QColor(245, 235, 170);
+
+    const int frame = qMax(1, intSize / 12);
+    const int innerSize = intSize - 2 * frame;
+    painter.fillRect(0, 0, intSize, intSize, borderColor);
+    painter.fillRect(frame, frame, innerSize, innerSize, plateColor);
+
+    const int margin = qMax(1, intSize / 10);
+    const int wingHeight = qMax(2, intSize / 8);
+    const int bodyWidth = qMax(2, intSize / 9);
+    const int emblemTop = frame + margin;
+    const int emblemBottom = intSize - frame - margin;
+    const int centerX = intSize / 2;
+
+    painter.fillRect(frame + margin, emblemTop + wingHeight / 2, intSize - 2 * (frame + margin), wingHeight, emblemColor);
+
+    painter.fillRect(centerX - bodyWidth / 2, emblemTop, bodyWidth, emblemBottom - emblemTop, emblemColor);
+
+    const int headSize = qMax(2, intSize / 12);
+    painter.fillRect(centerX - headSize / 2, emblemTop - wingHeight / 3, headSize, wingHeight, accentColor);
+
+    const int tailWidth = qMax(bodyWidth * 2, intSize / 5);
+    const int tailHeight = qMax(2, intSize / 10);
+    painter.fillRect(centerX - tailWidth / 2, emblemBottom - tailHeight, tailWidth, tailHeight, emblemColor);
+
+    const int clawWidth = qMax(2, intSize / 14);
+    const int clawHeight = qMax(2, tailHeight / 2);
+    painter.fillRect(centerX - tailWidth / 2, emblemBottom - clawHeight, clawWidth, clawHeight, accentColor);
+    painter.fillRect(centerX + tailWidth / 2 - clawWidth, emblemBottom - clawHeight, clawWidth, clawHeight, accentColor);
+
+    const int coreWidth = qMax(2, bodyWidth / 2);
+    const int coreHeight = qMax(2, intSize / 12);
+    painter.fillRect(centerX - coreWidth / 2, emblemTop + wingHeight + coreHeight / 2, coreWidth, coreHeight, accentColor);
+
+    if (destroyed) {
+        const QColor crackColor(20, 20, 20);
+        const int penWidth = qMax(1, intSize / 18);
+        painter.setPen(QPen(crackColor, penWidth));
+        painter.drawLine(QPoint(frame + margin, emblemTop + wingHeight),
+                         QPoint(intSize - frame - margin, emblemBottom - tailHeight / 2));
+        painter.drawLine(QPoint(centerX - bodyWidth, emblemTop),
+                         QPoint(centerX + margin / 2, emblemBottom));
+        painter.setPen(Qt::NoPen);
+    }
+
+    painter.end();
+
+    QBrush brush(pixmap);
+    cache.insert(key, brush);
+    return brush;
 }
 
 void Renderer::rebuildTileBrushes(qreal size)
