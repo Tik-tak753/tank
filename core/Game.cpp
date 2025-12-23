@@ -40,6 +40,11 @@ void Game::startNewGame()
     initialize();
 }
 
+void Game::setPendingLevelIndex(int index)
+{
+    m_pendingLevelIndex = index;
+}
+
 void Game::initialize()
 {
     // На цьому кроці в майбутньому будемо створювати карту, танки та базу.
@@ -54,22 +59,30 @@ void Game::initialize()
     if (!m_levelLoader)
         m_levelLoader = std::make_unique<LevelLoader>();
 
-    LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
+    LevelData level;
+    if (m_pendingLevelIndex.has_value()) {
+        level = m_levelLoader->loadLevelByIndex(*m_pendingLevelIndex, m_rules);
+        m_pendingLevelIndex.reset();
+    } else {
+        level = m_levelLoader->loadSavedLevel(m_rules);
+    }
     m_map = std::move(level.map);
 
-    const QPoint iceStart(3, 3);
-    for (int offset = 0; offset < 4; ++offset) {
-        const QPoint cell = iceStart + QPoint(offset, 0);
-        if (m_map && m_map->isInside(cell))
-            m_map->setTile(cell, TileFactory::ice());
-    }
-
-    const QPoint waterStart(10, 8);
-    for (int dy = 0; dy < 2; ++dy) {
-        for (int dx = 0; dx < 2; ++dx) {
-            const QPoint cell = waterStart + QPoint(dx, dy);
+    if (!level.loadedFromFile) {
+        const QPoint iceStart(3, 3);
+        for (int offset = 0; offset < 4; ++offset) {
+            const QPoint cell = iceStart + QPoint(offset, 0);
             if (m_map && m_map->isInside(cell))
-                m_map->setTile(cell, TileFactory::water());
+                m_map->setTile(cell, TileFactory::ice());
+        }
+
+        const QPoint waterStart(10, 8);
+        for (int dy = 0; dy < 2; ++dy) {
+            for (int dx = 0; dx < 2; ++dx) {
+                const QPoint cell = waterStart + QPoint(dx, dy);
+                if (m_map && m_map->isInside(cell))
+                    m_map->setTile(cell, TileFactory::water());
+            }
         }
     }
 
@@ -117,6 +130,22 @@ void Game::enterMainMenu()
     clearWorld();
     m_state.setSessionState(GameSessionState::Running);
     m_state.setGameMode(GameMode::MainMenu);
+}
+
+void Game::enterEditor()
+{
+    clearWorld();
+
+    if (!m_levelLoader)
+        m_levelLoader = std::make_unique<LevelLoader>();
+
+    LevelData level = m_levelLoader->loadDefaultLevel(m_rules);
+    m_map = std::move(level.map);
+    m_base = std::make_unique<Base>(level.baseCell);
+
+    m_state.reset(0, 0);
+    m_state.setSessionState(GameSessionState::Running);
+    m_state.setGameMode(GameMode::Editing);
 }
 
 void Game::setInputSystem(InputSystem* input)

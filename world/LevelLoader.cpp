@@ -2,6 +2,17 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
+#include <utility>
+
+#include <QCoreApplication>
+#include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QRegularExpression>
+#include <QStringList>
+#include <QTextStream>
 
 #include "world/Tile.h"
 #include "world/Wall.h"
@@ -9,7 +20,7 @@
 namespace {
 QPoint defaultPlayerSpawn(const QSize& size, const QPoint& baseCell)
 {
-    const QPoint leftOfBase(baseCell.x() - 1, baseCell.y());
+    const QPoint leftOfBase(baseCell.x() - 2, baseCell.y());
     if (leftOfBase.x() >= 0 && leftOfBase.x() < size.width() &&
         leftOfBase.y() >= 0 && leftOfBase.y() < size.height()) {
         return leftOfBase;
@@ -17,6 +28,170 @@ QPoint defaultPlayerSpawn(const QSize& size, const QPoint& baseCell)
 
     return QPoint(std::clamp(size.width() / 2, 0, size.width() - 1),
                   std::clamp(size.height() - 2, 0, size.height() - 1));
+}
+
+std::array<QPoint, 3> defaultEnemySpawns(const QSize& size)
+{
+    const int maxX = std::max(0, size.width() - 1);
+    const int maxY = std::max(0, size.height() - 1);
+    const int y = std::clamp(1, 0, maxY);
+
+    const int left = std::clamp(1, 0, maxX);
+    const int center = std::clamp(size.width() / 2, 0, maxX);
+    const int right = std::clamp(size.width() - 2, 0, maxX);
+
+    return {QPoint(left, y), QPoint(center, y), QPoint(right, y)};
+}
+
+Tile tileForType(TileType type)
+{
+    switch (type) {
+    case TileType::Empty: return TileFactory::empty();
+    case TileType::Brick: return TileFactory::brick();
+    case TileType::Steel: return TileFactory::steel();
+    case TileType::Forest: return TileFactory::forest();
+    case TileType::Water: return TileFactory::water();
+    case TileType::Ice: return TileFactory::ice();
+    case TileType::Base: return TileFactory::base();
+    }
+
+    Q_UNREACHABLE();
+}
+
+std::optional<TileType> tileTypeFromCode(int code)
+{
+    switch (code) {
+    case 0: return TileType::Empty;
+    case 1: return TileType::Brick;
+    case 2: return TileType::Steel;
+    case 3: return TileType::Forest;
+    case 4: return TileType::Water;
+    case 5: return TileType::Ice;
+    default:
+        break;
+    }
+
+    return std::nullopt;
+}
+
+bool parseNumericLevel(QTextStream& stream, const GameRules& rules, QSize& declaredSize, QVector<QVector<int>>& rows)
+{
+    declaredSize = rules.mapSize();
+    bool sizeParsed = false;
+
+    while (!stream.atEnd()) {
+        const QString line = stream.readLine();
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty())
+            continue;
+
+        const QStringList parts = trimmed.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        if (!sizeParsed && parts.size() >= 2) {
+            bool okWidth = false;
+            bool okHeight = false;
+            const int width = parts.at(0).toInt(&okWidth);
+            const int height = parts.at(1).toInt(&okHeight);
+            if (okWidth && okHeight && width > 0 && height > 0) {
+                declaredSize = QSize(width, height);
+                sizeParsed = true;
+                continue;
+            }
+        }
+
+        QVector<int> row;
+        row.reserve(parts.size());
+        for (const QString& part : parts) {
+            bool ok = false;
+            const int value = part.toInt(&ok);
+            if (!ok)
+                continue;
+            row.append(value);
+        }
+
+        if (!row.isEmpty())
+            rows.append(std::move(row));
+    }
+
+    return sizeParsed || !rows.isEmpty();
+}
+
+LevelData loadLevelFromNumeric(const QVector<QVector<int>>& rows, const QSize& declaredSize, const GameRules& rules, LevelData fallback)
+{
+    const QSize mapSize = rules.mapSize();
+    LevelData data;
+    data.map = std::make_unique<Map>(mapSize);
+    data.baseCell = rules.baseCell();
+    data.playerSpawn = defaultPlayerSpawn(mapSize, data.baseCell);
+    const std::array<QPoint, 3> spawnDefaults = defaultEnemySpawns(mapSize);
+    for (const QPoint& spawn : spawnDefaults)
+        data.enemySpawns.append(spawn);
+    data.loadedFromFile = true;
+
+    const int width = mapSize.width();
+    const int height = mapSize.height();
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const QPoint cell(x, y);
+            data.map->setTile(cell, TileFactory::empty());
+        }
+    }
+
+    const int appliedHeight = std::min({height, declaredSize.height(), static_cast<int>(rows.size())});
+    for (int y = 0; y < appliedHeight; ++y) {
+        const QVector<int>& row = rows.at(y);
+        const int appliedWidth = std::min({width, declaredSize.width(), static_cast<int>(row.size())});
+        for (int x = 0; x < appliedWidth; ++x) {
+            const int code = row.at(x);
+            const std::optional<TileType> type = tileTypeFromCode(code);
+            if (!type.has_value() || *type == TileType::Base)
+                continue;
+
+            const QPoint cell(x, y);
+            data.map->setTile(cell, tileForType(*type));
+        }
+    }
+
+    if (data.map->isInside(data.baseCell))
+        data.map->setTile(data.baseCell, TileFactory::base());
+
+    const QPoint leftOfBase(data.baseCell.x() - 1, data.baseCell.y());
+    const QPoint bottomCenter(std::clamp(mapSize.width() / 2, 0, mapSize.width() - 1),
+                              std::clamp(mapSize.height() - 2, 0, mapSize.height() - 1));
+    const std::array<QPoint, 3> spawnCandidates = {
+        data.playerSpawn,
+        leftOfBase,
+        bottomCenter,
+    };
+
+    for (const QPoint& candidate : spawnCandidates) {
+        if (!data.map->isInside(candidate))
+            continue;
+
+        Tile tile = data.map->tile(candidate);
+        if (tile.type == TileType::Base)
+            continue;
+
+        data.map->setTile(candidate, TileFactory::empty());
+        data.playerSpawn = candidate;
+        break;
+    }
+
+    const std::array<QPoint, 3> enemySpawns = defaultEnemySpawns(mapSize);
+    data.enemySpawns.clear();
+    for (const QPoint& spawn : enemySpawns) {
+        if (!data.map->isInside(spawn))
+            continue;
+        if (data.map->tile(spawn).type == TileType::Base)
+            continue;
+        data.map->setTile(spawn, TileFactory::empty());
+        data.enemySpawns.append(spawn);
+    }
+
+    if (data.map)
+        return data;
+
+    return std::move(fallback);
 }
 } // namespace
 
@@ -110,6 +285,145 @@ LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& r
     }
 
     return data;
+}
+
+namespace {
+QString mapsDirectory()
+{
+    const QString currentPath = QDir::currentPath();
+    const QStringList candidates = {
+        QStringLiteral("assets/maps"),
+        QStringLiteral("../assets/maps"),
+        QStringLiteral("../../assets/maps"),
+        QStringLiteral("../../../assets/maps"),
+    };
+
+    for (const QString& candidate : candidates) {
+        const QString absoluteCandidate = QDir(currentPath).absoluteFilePath(candidate);
+        const QDir dir(absoluteCandidate);
+        if (dir.exists() && dir.isReadable())
+            return dir.absolutePath();
+    }
+
+    return QDir(currentPath).absoluteFilePath(QStringLiteral("assets/maps"));
+}
+
+QStringList scanLevelFiles()
+{
+    const QDir dir(mapsDirectory());
+    QStringList entries = dir.entryList(QStringList() << QStringLiteral("Level*.txt"), QDir::Files, QDir::Name);
+    entries.sort(Qt::CaseInsensitive);
+    return entries;
+}
+} // namespace
+
+LevelData LevelLoader::loadLevelByName(const QString& fileName, const GameRules& rules) const
+{
+    LevelData fallback = loadDefaultLevel(rules);
+
+    const QString baseDir = mapsDirectory();
+    const QFileInfo info(QDir(baseDir).filePath(fileName));
+    if (!info.exists() || !info.isReadable())
+        return fallback;
+
+    QFile file(info.absoluteFilePath());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return fallback;
+
+    QTextStream stream(&file);
+    QVector<QVector<int>> rows;
+    QSize declaredSize;
+    if (parseNumericLevel(stream, rules, declaredSize, rows)) {
+        return loadLevelFromNumeric(rows, declaredSize, rules, std::move(fallback));
+    }
+
+    file.seek(0);
+    QStringList lines;
+    while (!stream.atEnd())
+        lines.append(stream.readLine());
+
+    LevelData data = loadFromText(lines, rules);
+    data.loadedFromFile = true;
+
+    if (data.map)
+        return data;
+
+    return fallback;
+}
+
+LevelData LevelLoader::loadLevelByIndex(int index, const GameRules& rules) const
+{
+    const QStringList files = scanLevelFiles();
+    if (files.isEmpty())
+        return loadDefaultLevel(rules);
+
+    const qsizetype clampedIndex = std::clamp<qsizetype>(static_cast<qsizetype>(index), 0, files.size() - 1);
+    return loadLevelByName(files.at(clampedIndex), rules);
+}
+
+QStringList LevelLoader::availableLevelFiles() const
+{
+    return scanLevelFiles();
+}
+
+LevelData LevelLoader::loadSavedLevel(const GameRules& rules) const
+{
+    LevelData fallback = loadDefaultLevel(rules);
+
+    const QString relativePath = QStringLiteral("assets/maps/Demo.txt");
+    qInfo() << "LevelLoader: current working directory:" << QDir::currentPath();
+    const QString applicationDir = QCoreApplication::applicationDirPath();
+    qInfo() << "LevelLoader: applicationDirPath:" << applicationDir;
+
+    auto logCandidate = [](const QString& label, const QString& path) {
+        const QFileInfo info(path);
+        qInfo() << "LevelLoader:" << label << ":" << path
+                << "exists:" << info.exists() << "readable:" << info.isReadable();
+    };
+
+    const QString initialPath = QFileInfo(relativePath).absoluteFilePath();
+    logCandidate(QStringLiteral("initial candidate (working directory)"), initialPath);
+
+    const QList<QString> candidatePaths = {
+        QDir(applicationDir).absoluteFilePath(relativePath),
+        QDir(applicationDir).absoluteFilePath(QStringLiteral("../%1").arg(relativePath)),
+        QDir(applicationDir).absoluteFilePath(QStringLiteral("../../%1").arg(relativePath)),
+        QDir(applicationDir).absoluteFilePath(QStringLiteral("../../../%1").arg(relativePath)),
+        initialPath,
+    };
+
+    QString resolvedPath;
+    for (const QString& candidate : candidatePaths) {
+        logCandidate(QStringLiteral("candidate path"), candidate);
+        const QFileInfo info(candidate);
+        if (info.exists() && info.isReadable()) {
+            resolvedPath = info.absoluteFilePath();
+            break;
+        }
+    }
+
+    if (resolvedPath.isEmpty()) {
+        resolvedPath = initialPath;
+        qWarning() << "LevelLoader: no readable saved level found; using initial path"
+                   << resolvedPath;
+    }
+
+    qInfo() << "LevelLoader: resolved path to saved level:" << resolvedPath;
+
+    QFile file(resolvedPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "LevelLoader: failed to open saved level:" << file.errorString();
+        qWarning() << "LevelLoader: falling back to default level";
+        return fallback;
+    }
+
+    QTextStream stream(&file);
+    QVector<QVector<int>> rows;
+    QSize declaredSize;
+    if (!parseNumericLevel(stream, rules, declaredSize, rows))
+        return fallback;
+
+    return loadLevelFromNumeric(rows, declaredSize, rules, std::move(fallback));
 }
 
 LevelData LevelLoader::loadDefaultLevel(const GameRules& rules) const

@@ -25,6 +25,7 @@ SOURCES += \
     gameplay/PlayerTank.cpp \
     gameplay/Tank.cpp \
     gameplay/WeaponSystem.cpp \
+    LevelEditor.cpp \
     main.cpp \
     mainwindow.cpp \
     model/agent.cpp \
@@ -32,6 +33,8 @@ SOURCES += \
     model/tilemap.cpp \
     rendering/Animation.cpp \
     rendering/Camera.cpp \
+    rendering/HudItem.cpp \
+    rendering/EditorOverlayItem.cpp \
     rendering/Renderer.cpp \
     rendering/SpriteManager.cpp \
     systems/CollisionSystem.cpp \
@@ -67,6 +70,7 @@ HEADERS += \
     gameplay/PlayerTank.h \
     gameplay/Tank.h \
     gameplay/WeaponSystem.h \
+    LevelEditor.h \
     mainwindow.h \
     model/agent.h \
     model/botagent.h \
@@ -74,6 +78,8 @@ HEADERS += \
     utils/Constants.h \
     rendering/Animation.h \
     rendering/Camera.h \
+    rendering/HudItem.h \
+    rendering/EditorOverlayItem.h \
     rendering/Renderer.h \
     rendering/SpriteManager.h \
     systems/CollisionSystem.h \

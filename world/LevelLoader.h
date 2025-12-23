@@ -3,6 +3,7 @@
 
 #include <QList>
 #include <QPoint>
+#include <QString>
 #include <QStringList>
 #include <memory>
 
@@ -15,6 +16,7 @@ struct LevelData
     QPoint playerSpawn;
     QList<QPoint> enemySpawns;
     QPoint baseCell;
+    bool loadedFromFile = false;
 };
 
 /*
@@ -26,7 +28,11 @@ class LevelLoader
 {
 public:
     LevelData loadDefaultLevel(const GameRules& rules) const;
+    LevelData loadLevelByName(const QString& fileName, const GameRules& rules) const;
+    LevelData loadLevelByIndex(int index, const GameRules& rules) const;
+    QStringList availableLevelFiles() const;
     LevelData loadFromText(const QStringList& lines, const GameRules& rules) const;
+    LevelData loadSavedLevel(const GameRules& rules) const;
 };
 
 #endif // LEVELLOADER_H

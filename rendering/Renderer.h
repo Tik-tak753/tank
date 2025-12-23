@@ -1,6 +1,7 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <QBrush>
 #include <QHash>
 #include <QList>
 #include <QPoint>
@@ -22,11 +23,14 @@ class Map;
 class Tank;
 class Bullet;
 class Bonus;
+enum class BonusType;
+class HudItem;
 
 struct Explosion
 {
     QPoint cell;
     int ttlFrames;
+    int totalFrames;
 };
 
 /*
@@ -52,10 +56,15 @@ private:
     void updateHud(const Game& game);
     void updateBaseBlinking(const Game& game);
     void updateRenderTransform(const Game& game);
+    void updateBackground(const Game& game);
     QPointF cellToScene(const QPoint& cell) const;
     QPointF tileToScene(const QPointF& tile) const;
     void clearMapLayer();
     qreal tileSize() const;
+    QBrush tileBrush(int tileType, qreal size);
+    QBrush baseTileBrush(bool destroyed, bool blinkPhase, qreal size);
+    QBrush bonusBrush(BonusType type, qreal size);
+    void rebuildTileBrushes(qreal size);
 
     QGraphicsScene* m_scene = nullptr;
     SpriteManager* m_sprites = nullptr;
@@ -68,7 +77,8 @@ private:
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
     QHash<const Bonus*, QGraphicsRectItem*> m_bonusItems;
     QList<QGraphicsRectItem*> m_explosionItems;
-    QGraphicsTextItem* m_hudItem = nullptr;
+    HudItem* m_hudItem = nullptr;
+    QGraphicsRectItem* m_mapFrameItem = nullptr;
     QPointF m_renderOffset{0.0, 0.0};
     qreal m_tileScale = TILE_SIZE;
 
@@ -81,7 +91,9 @@ private:
     QHash<const Bullet*, QPoint> m_lastBulletCells;
     QHash<const Bullet*, bool> m_lastBulletExplosions;
     QSet<const Tank*> m_destroyedTanks;
-    QString m_lastHudStatus;
+
+    QHash<int, QBrush> m_tileBrushes;
+    int m_tileBrushSize = 0;
 };
 
 #endif // RENDERER_H

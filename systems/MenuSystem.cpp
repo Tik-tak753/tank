@@ -12,10 +12,12 @@
 #include <QPointF>
 #include <QtGlobal>
 #include <QSizeF>
+#include <QStringList>
 #include <algorithm>
 
 #include "core/Game.h"
 #include "systems/InputSystem.h"
+#include "world/LevelLoader.h"
 
 MenuSystem::MenuSystem() = default;
 
@@ -43,7 +45,8 @@ bool MenuSystem::blocksGameplay() const
 {
     return m_state == MenuState::MainMenu
         || m_state == MenuState::PauseMenu
-        || m_state == MenuState::GameOverMenu;
+        || m_state == MenuState::GameOverMenu
+        || m_state == MenuState::About;
 }
 
 bool MenuSystem::handleInput(QKeyEvent& event)
@@ -88,11 +91,17 @@ bool MenuSystem::handleInput(QKeyEvent& event)
             return true;
         }
     }
+    if (key == Qt::Key_Escape && m_state == MenuState::About) {
+        returnToMainMenu();
+        event.accept();
+        return true;
+    }
 
     switch (m_state) {
     case MenuState::MainMenu:
     case MenuState::PauseMenu:
     case MenuState::GameOverMenu:
+    case MenuState::About:
         break;
     case MenuState::None:
         if (key == Qt::Key_Escape) {
@@ -145,6 +154,9 @@ void MenuSystem::buildMainMenu()
 {
     QVector<MenuEntry> entries;
     entries.append(MenuEntry{QStringLiteral("Start Game"), [this]() { startGame(); }});
+    entries.append(MenuEntry{QStringLiteral("Select Level"), [this]() { buildLevelSelectMenu(); }});
+    entries.append(MenuEntry{QStringLiteral("Editor"), [this]() { startEditor(); }});
+    entries.append(MenuEntry{QStringLiteral("About"), [this]() { buildAboutMenu(); }});
     entries.append(MenuEntry{QStringLiteral("Exit"), [this]() {
         if (m_exitCallback)
             m_exitCallback();
@@ -170,6 +182,51 @@ void MenuSystem::buildGameOverMenu(bool victory)
     activateMenu(MenuState::GameOverMenu, title, std::move(entries));
 }
 
+void MenuSystem::buildAboutMenu()
+{
+    QVector<MenuEntry> entries;
+    const QStringList lines = {
+        QStringLiteral("Battle City Clone"),
+        QStringLiteral("Developer build"),
+        QString(),
+        QStringLiteral("Controls:"),
+        QStringLiteral("Arrows — Move"),
+        QStringLiteral("Space — Fire"),
+        QStringLiteral("ESC — Back"),
+    };
+    for (const QString& line : lines) {
+        entries.append(MenuEntry{line, nullptr});
+    }
+    activateMenu(MenuState::About, QStringLiteral("ABOUT"), std::move(entries));
+    m_selectedIndex = -1;
+    updateSelectionVisuals();
+}
+
+void MenuSystem::buildLevelSelectMenu()
+{
+    QVector<MenuEntry> entries;
+
+    LevelLoader loader;
+    const QStringList levelFiles = loader.availableLevelFiles();
+
+    for (int i = 0; i < levelFiles.size(); ++i) {
+        const QString label = QStringLiteral("Level %1").arg(i + 1);
+        entries.append(MenuEntry{label, [this, i]() {
+            if (m_game)
+                m_game->setPendingLevelIndex(i);
+            startGame();
+        }});
+    }
+
+    if (entries.isEmpty()) {
+        entries.append(MenuEntry{QStringLiteral("No levels found"), nullptr});
+    }
+
+    entries.append(MenuEntry{QStringLiteral("Back"), [this]() { buildMainMenu(); }});
+
+    activateMenu(MenuState::MainMenu, QStringLiteral("SELECT LEVEL"), std::move(entries));
+}
+
 void MenuSystem::startGame()
 {
     clearInput();
@@ -177,6 +234,16 @@ void MenuSystem::startGame()
         m_game->startNewGame();
     m_state = MenuState::None;
     clearGameOverOverlay();
+    hideMenuItems();
+    updateMenuBackground(sceneRect(), false);
+}
+
+void MenuSystem::startEditor()
+{
+    clearInput();
+    if (m_game)
+        m_game->enterEditor();
+    m_state = MenuState::None;
     hideMenuItems();
     updateMenuBackground(sceneRect(), false);
 }
@@ -475,6 +542,11 @@ void MenuSystem::updateMenuOverlays()
         break;
     case MenuState::GameOverMenu:
         hideOverlay(m_mainMenuItem);
+        hideOverlay(m_pauseMenuItem);
+        hideOverlay(m_gameOverItem);
+        updateMenuPanel(rect);
+        break;
+    case MenuState::About:
         hideOverlay(m_pauseMenuItem);
         hideOverlay(m_gameOverItem);
         updateMenuPanel(rect);

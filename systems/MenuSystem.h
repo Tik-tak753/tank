@@ -19,7 +19,8 @@ enum class MenuState {
     None,
     MainMenu,
     PauseMenu,
-    GameOverMenu
+    GameOverMenu,
+    About,
 };
 
 class MenuSystem
@@ -49,7 +50,10 @@ private:
     void buildMainMenu();
     void buildPauseMenu();
     void buildGameOverMenu(bool victory);
+    void buildAboutMenu();
+    void buildLevelSelectMenu();
     void startGame();
+    void startEditor();
     void pauseGame();
     void resumeGame();
     void restartLevel();

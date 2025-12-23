@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QList>
 #include <QPoint>
+#include <optional>
 #include <vector>
 #include <memory>
 
@@ -42,9 +43,11 @@ public:
     // Крок оновлення (викликається MainWindow)
     void update(int deltaMs);
     void startNewGame();
+    void setPendingLevelIndex(int index);
     void pause();
     void resume();
     void enterMainMenu();
+    void enterEditor();
 
     const GameState& state() const { return m_state; }
     GameRules& rules() { return m_rules; }
@@ -123,6 +126,7 @@ private:
     int m_bonusSpawnTimerMs = 0;
     int m_enemyKillsSinceBonus = 0;
     int m_enemyFreezeTimerMs = 0;
+    std::optional<int> m_pendingLevelIndex;
 };
 
 #endif // GAME_H
