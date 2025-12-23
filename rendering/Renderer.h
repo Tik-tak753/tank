@@ -23,6 +23,7 @@ class Map;
 class Tank;
 class Bullet;
 class Bonus;
+enum class BonusType;
 class HudItem;
 
 struct Explosion
@@ -61,6 +62,7 @@ private:
     qreal tileSize() const;
     QBrush tileBrush(int tileType, qreal size);
     QBrush baseTileBrush(bool destroyed, bool blinkPhase, qreal size);
+    QBrush bonusBrush(BonusType type, qreal size);
     void rebuildTileBrushes(qreal size);
 
     QGraphicsScene* m_scene = nullptr;
