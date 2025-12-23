@@ -33,6 +33,7 @@ SOURCES += \
     model/tilemap.cpp \
     rendering/Animation.cpp \
     rendering/Camera.cpp \
+    rendering/HudItem.cpp \
     rendering/Renderer.cpp \
     rendering/SpriteManager.cpp \
     systems/CollisionSystem.cpp \
@@ -76,6 +77,7 @@ HEADERS += \
     utils/Constants.h \
     rendering/Animation.h \
     rendering/Camera.h \
+    rendering/HudItem.h \
     rendering/Renderer.h \
     rendering/SpriteManager.h \
     systems/CollisionSystem.h \
