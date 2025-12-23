@@ -345,6 +345,7 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
     const qreal size = tileSize();
     const qreal barrelLength = size * 0.6;
     const qreal barrelThickness = size * 0.2;
+    const int intSize = qMax(1, qRound(size));
     QSet<const Tank*> seen;
 
     auto barrelRectForDirection = [&](Direction dir) {
@@ -360,6 +361,59 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
         }
 
         return QRectF();
+    };
+
+    auto tankBrushForColor = [intSize](const QColor& bodyColor) {
+        static QHash<quint64, QBrush> cache;
+        const quint64 key = (static_cast<quint64>(intSize) << 32) | static_cast<quint64>(bodyColor.rgba());
+        const auto cached = cache.constFind(key);
+        if (cached != cache.constEnd())
+            return cached.value();
+
+        const QColor trackColor = bodyColor.darker(170);
+        const QColor trackHighlight = trackColor.lighter(130);
+        const QColor bodyHighlight = bodyColor.lighter(120);
+        const QColor bodyShadow = bodyColor.darker(140);
+        const QColor turretColor = bodyColor.lighter(110);
+
+        QPixmap pixmap(intSize, intSize);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing, false);
+
+        const int trackWidth = qMax(1, intSize / 6);
+        const int bodyWidth = intSize - 2 * trackWidth;
+        const int treadSegment = qMax(1, intSize / 8);
+        for (int y = 0; y < intSize; y += treadSegment) {
+            const int h = qMin(treadSegment, intSize - y);
+            const QColor treadColor = ((y / treadSegment) % 2) ? trackColor : trackHighlight;
+            painter.fillRect(0, y, trackWidth, h, treadColor);
+            painter.fillRect(intSize - trackWidth, y, trackWidth, h, treadColor);
+        }
+
+        painter.fillRect(trackWidth, 0, bodyWidth, intSize, bodyColor);
+        const int edge = qMax(1, intSize / 16);
+        painter.fillRect(trackWidth, 0, bodyWidth, edge, bodyHighlight);
+        painter.fillRect(trackWidth, intSize - edge, bodyWidth, edge, bodyShadow);
+        painter.fillRect(trackWidth, edge, edge, intSize - 2 * edge, bodyHighlight);
+        painter.fillRect(trackWidth + bodyWidth - edge, edge, edge, intSize - 2 * edge, bodyShadow);
+
+        const int turretSize = qMax(intSize / 3, bodyWidth / 2);
+        const int turretX = (intSize - turretSize) / 2;
+        const int turretY = (intSize - turretSize) / 2;
+        painter.fillRect(turretX, turretY, turretSize, turretSize, turretColor);
+
+        const int turretInset = qMax(1, turretSize / 6);
+        painter.fillRect(turretX + turretInset, turretY + turretInset,
+                         turretSize - 2 * turretInset, turretInset, bodyHighlight);
+        painter.fillRect(turretX + turretInset, turretY + turretSize - 2 * turretInset,
+                         turretSize - 2 * turretInset, turretInset, bodyShadow);
+
+        painter.end();
+
+        QBrush brush(pixmap);
+        cache.insert(key, brush);
+        return brush;
     };
 
     auto playerColorForStars = [](int stars) {
@@ -419,8 +473,14 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
         } else if (auto enemy = dynamic_cast<EnemyTank*>(tank)) {
             bodyColor = enemy->currentColor();
         }
-        if (item->brush().color() != bodyColor)
-            item->setBrush(bodyColor);
+
+        const QBrush tankBrush = tankBrushForColor(bodyColor);
+        if (item->brush() != tankBrush)
+            item->setBrush(tankBrush);
+
+        const QColor barrelColor = bodyColor.darker(190);
+        if (directionItem->brush().color() != barrelColor)
+            directionItem->setBrush(QBrush(barrelColor));
 
         const QPointF interpolatedPosition = tank->previousRenderPosition()
                                              + (tank->renderPosition() - tank->previousRenderPosition()) * alpha;
