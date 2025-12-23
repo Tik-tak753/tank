@@ -40,7 +40,7 @@ Tile tileForType(TileType type)
 
 QPoint defaultPlayerSpawn(const QSize& size, const QPoint& baseCell)
 {
-    const QPoint leftOfBase(baseCell.x() - 1, baseCell.y());
+    const QPoint leftOfBase(baseCell.x() - 2, baseCell.y());
     if (leftOfBase.x() >= 0 && leftOfBase.x() < size.width() &&
         leftOfBase.y() >= 0 && leftOfBase.y() < size.height()) {
         return leftOfBase;
