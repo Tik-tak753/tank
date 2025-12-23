@@ -57,19 +57,21 @@ void Game::initialize()
     LevelData level = m_levelLoader->loadSavedLevel(m_rules);
     m_map = std::move(level.map);
 
-    const QPoint iceStart(3, 3);
-    for (int offset = 0; offset < 4; ++offset) {
-        const QPoint cell = iceStart + QPoint(offset, 0);
-        if (m_map && m_map->isInside(cell))
-            m_map->setTile(cell, TileFactory::ice());
-    }
-
-    const QPoint waterStart(10, 8);
-    for (int dy = 0; dy < 2; ++dy) {
-        for (int dx = 0; dx < 2; ++dx) {
-            const QPoint cell = waterStart + QPoint(dx, dy);
+    if (!level.loadedFromFile) {
+        const QPoint iceStart(3, 3);
+        for (int offset = 0; offset < 4; ++offset) {
+            const QPoint cell = iceStart + QPoint(offset, 0);
             if (m_map && m_map->isInside(cell))
-                m_map->setTile(cell, TileFactory::water());
+                m_map->setTile(cell, TileFactory::ice());
+        }
+
+        const QPoint waterStart(10, 8);
+        for (int dy = 0; dy < 2; ++dy) {
+            for (int dx = 0; dx < 2; ++dx) {
+                const QPoint cell = waterStart + QPoint(dx, dy);
+                if (m_map && m_map->isInside(cell))
+                    m_map->setTile(cell, TileFactory::water());
+            }
         }
     }
 
