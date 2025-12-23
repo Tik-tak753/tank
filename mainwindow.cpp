@@ -9,13 +9,16 @@
 #include <QResizeEvent>
 #include <QtGlobal>
 #include <QMouseEvent>
+#include <algorithm>
 
 #include "LevelEditor.h"
 #include "core/Game.h"
 #include "systems/InputSystem.h"
 #include "systems/MenuSystem.h"
 #include "rendering/Renderer.h"
+#include "rendering/EditorOverlayItem.h"
 #include "utils/Constants.h"
+#include "world/Map.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -59,6 +62,14 @@ MainWindow::MainWindow(QWidget *parent)
     m_levelEditor->setGame(m_game.get());
     m_levelEditor->setView(m_view);
 
+    m_editorOverlay = new EditorOverlayItem();
+    m_editorOverlay->setVisible(false);
+    m_editorOverlay->setSelectionCallback([this](TileType type) {
+        if (m_levelEditor)
+            m_levelEditor->setSelectedTile(type);
+    });
+    m_scene->addItem(m_editorOverlay);
+
     /* =====================
      * Timer / GameLoop
      * ===================== */
@@ -85,6 +96,8 @@ MainWindow::MainWindow(QWidget *parent)
 
         if (m_menuSystem)
             m_menuSystem->renderMenus();
+
+        updateEditorOverlay();
     });
     m_timer->start(kFixedTickMs);
 }
@@ -170,4 +183,35 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 
     if (m_menuSystem)
         m_menuSystem->renderMenus();
+}
+
+void MainWindow::updateEditorOverlay()
+{
+    if (!m_editorOverlay)
+        return;
+
+    const bool editing = m_game && m_game->state().gameMode() == GameMode::Editing;
+    m_editorOverlay->setVisible(editing);
+    if (!editing)
+        return;
+
+    if (m_levelEditor)
+        m_editorOverlay->setSelectedTile(m_levelEditor->selectedTile());
+
+    qreal tileSize = 26.0;
+    if (m_view && m_view->viewport() && m_game) {
+        Map* map = m_game->map();
+        if (map) {
+            const QSize viewportSize = m_view->viewport()->size();
+            const QSize mapSize = map->size();
+            if (!viewportSize.isEmpty() && !mapSize.isEmpty()) {
+                const qreal widthScale = static_cast<qreal>(viewportSize.width()) / static_cast<qreal>(mapSize.width());
+                const qreal heightScale = static_cast<qreal>(viewportSize.height()) / static_cast<qreal>(mapSize.height());
+                tileSize = qBound<qreal>(18.0, std::min(widthScale, heightScale), 56.0);
+            }
+        }
+    }
+
+    m_editorOverlay->setTileSize(tileSize);
+    m_editorOverlay->setPos(12.0, 12.0);
 }

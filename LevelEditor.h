@@ -28,6 +28,9 @@ public:
     void setGame(Game* game);
     void setView(QGraphicsView* view);
 
+    TileType selectedTile() const;
+    void setSelectedTile(TileType type);
+
     bool handleKeyPress(QKeyEvent& event);
     bool handleMousePress(QMouseEvent& event);
 
