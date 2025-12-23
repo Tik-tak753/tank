@@ -9,6 +9,7 @@
 #include <QPainter>
 #include <QPen>
 #include <QPixmap>
+#include <QPolygonF>
 #include <QSet>
 #include <QtGlobal>
 #include <cmath>
@@ -35,6 +36,7 @@ namespace {
 constexpr int kExplosionFrameCount = 3;
 constexpr qreal kExplosionMinScale = 0.35;
 constexpr qreal kExplosionMaxScale = 0.95;
+constexpr qreal kPi = 3.14159265358979323846;
 } // namespace
 
 Renderer::Renderer(QGraphicsScene* scene)
@@ -345,6 +347,178 @@ void Renderer::rebuildTileBrushes(qreal size)
     }));
 }
 
+QBrush Renderer::bonusBrush(BonusType type, qreal size)
+{
+    const int intSize = qMax(1, qRound(size));
+    const quint64 key = (static_cast<quint64>(intSize) << 32) | static_cast<quint64>(type);
+    static QHash<quint64, QBrush> cache;
+    const auto cached = cache.constFind(key);
+    if (cached != cache.constEnd())
+        return cached.value();
+
+    const auto withShadow = [&](QPainter& painter, const QColor& shadowColor) {
+        const int shadow = qMax(1, intSize / 18);
+        painter.fillRect(shadow, shadow, intSize - shadow, intSize - shadow, shadowColor);
+    };
+
+    QPixmap pixmap(intSize, intSize);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+
+    switch (type) {
+    case BonusType::Star: {
+        const QColor body(255, 220, 60);
+        const QColor highlight(255, 245, 165);
+        const QColor outline(140, 90, 15);
+        const QColor shadow(90, 55, 10);
+        withShadow(painter, shadow);
+
+        const QPointF center(intSize / 2.0, intSize / 2.0);
+        const qreal outerRadius = (intSize / 2.0) - qMax(1, intSize / 12);
+        const qreal innerRadius = outerRadius * 0.45;
+        QPolygonF polygon;
+        for (int i = 0; i < 10; ++i) {
+            const qreal angle = -kPi / 2.0 + i * kPi / 5.0;
+            const qreal radius = (i % 2 == 0) ? outerRadius : innerRadius;
+            polygon << QPointF(center.x() + std::cos(angle) * radius,
+                                center.y() + std::sin(angle) * radius);
+        }
+
+        painter.setBrush(body);
+        painter.setPen(QPen(outline, qMax(1, intSize / 18)));
+        painter.drawPolygon(polygon);
+
+        painter.setPen(Qt::NoPen);
+        QPolygonF glow;
+        const qreal glowOuter = outerRadius * 0.75;
+        const qreal glowInner = innerRadius * 0.65;
+        for (int i = 0; i < 10; ++i) {
+            const qreal angle = -kPi / 2.0 + i * kPi / 5.0;
+            const qreal radius = (i % 2 == 0) ? glowOuter : glowInner;
+            glow << QPointF(center.x() + std::cos(angle) * radius,
+                            center.y() + std::sin(angle) * radius);
+        }
+        painter.setBrush(highlight);
+        painter.drawPolygon(glow);
+        break;
+    }
+    case BonusType::Helmet: {
+        const QColor shell(120, 200, 255);
+        const QColor visor(35, 70, 105);
+        const QColor outline(20, 60, 90);
+        const QColor shine(200, 240, 255);
+        withShadow(painter, QColor(15, 40, 60, 180));
+
+        const int margin = qMax(1, intSize / 8);
+        const int shellTop = margin + margin / 5;
+        const QRect shellRect(margin, shellTop, intSize - 2 * margin, intSize - margin * 2);
+
+        painter.setBrush(shell);
+        painter.setPen(QPen(outline, qMax(1, intSize / 22)));
+        painter.drawRoundedRect(shellRect, shellRect.width() / 6.0, shellRect.height() / 6.0);
+
+        const int brimHeight = qMax(2, intSize / 7);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(outline);
+        painter.drawRect(shellRect.x(), shellRect.bottom() - brimHeight, shellRect.width(), brimHeight);
+
+        const int visorHeight = qMax(2, shellRect.height() / 3);
+        const int visorWidth = shellRect.width() - qMax(2, intSize / 10);
+        const int visorX = shellRect.x() + (shellRect.width() - visorWidth) / 2;
+        const int visorY = shellRect.y() + shellRect.height() / 3;
+        painter.setBrush(visor);
+        painter.drawRoundedRect(QRect(visorX, visorY, visorWidth, visorHeight), visorHeight / 3.0, visorHeight / 3.0);
+
+        painter.setBrush(shine);
+        const int shineWidth = qMax(1, visorWidth / 3);
+        painter.drawRect(QRect(visorX + visorWidth / 6, visorY + visorHeight / 4, shineWidth, visorHeight / 6));
+        break;
+    }
+    case BonusType::Clock: {
+        const QColor rim(255, 255, 255);
+        const QColor face(235, 245, 255);
+        const QColor tick(90, 120, 160);
+        const QColor hand(200, 80, 80);
+        withShadow(painter, QColor(25, 30, 55, 190));
+
+        const int radius = intSize / 2 - qMax(1, intSize / 12);
+        const QPoint center(intSize / 2, intSize / 2);
+        painter.setBrush(rim);
+        painter.setPen(QPen(tick.darker(140), qMax(1, intSize / 18)));
+        painter.drawEllipse(center, radius, radius);
+
+        painter.setBrush(face);
+        painter.setPen(Qt::NoPen);
+        painter.drawEllipse(center, radius - qMax(1, intSize / 14), radius - qMax(1, intSize / 14));
+
+        painter.setPen(QPen(tick, qMax(1, intSize / 24)));
+        const int tickLength = qMax(2, radius / 4);
+        for (int i = 0; i < 12; ++i) {
+            const qreal angle = -kPi / 2.0 + i * kPi / 6.0;
+            const QPoint inner(center.x() + std::cos(angle) * (radius - tickLength),
+                               center.y() + std::sin(angle) * (radius - tickLength));
+            const QPoint outer(center.x() + std::cos(angle) * (radius - qMax(1, intSize / 20)),
+                               center.y() + std::sin(angle) * (radius - qMax(1, intSize / 20)));
+            painter.drawLine(inner, outer);
+        }
+
+        painter.setPen(QPen(hand, qMax(1, intSize / 18)));
+        const QPoint hourHand(center.x() + std::cos(kPi / 3.0) * (radius * 0.45),
+                              center.y() - std::sin(kPi / 3.0) * (radius * 0.45));
+        painter.drawLine(center, hourHand);
+        painter.setPen(QPen(tick, qMax(1, intSize / 20)));
+        const QPoint minuteHand(center.x() + std::cos(-kPi / 6.0) * (radius * 0.65),
+                                center.y() + std::sin(-kPi / 6.0) * (radius * 0.65));
+        painter.drawLine(center, minuteHand);
+        painter.setBrush(hand);
+        painter.drawEllipse(center, qMax(1, intSize / 18), qMax(1, intSize / 18));
+        break;
+    }
+    case BonusType::Grenade: {
+        const QColor body(90, 160, 95);
+        const QColor segments(65, 115, 75);
+        const QColor pin(200, 200, 210);
+        const QColor fuse(180, 130, 70);
+        withShadow(painter, QColor(20, 40, 25, 180));
+
+        const int margin = qMax(1, intSize / 8);
+        QRect bodyRect(margin, margin, intSize - 2 * margin, intSize - 2 * margin);
+        painter.setBrush(body);
+        painter.setPen(QPen(segments.darker(120), qMax(1, intSize / 24)));
+        painter.drawRoundedRect(bodyRect, bodyRect.width() / 7.0, bodyRect.width() / 7.0);
+
+        painter.setPen(QPen(segments, qMax(1, intSize / 20)));
+        const int rows = 3;
+        const int cols = 2;
+        for (int r = 1; r < rows; ++r) {
+            const int y = bodyRect.y() + (bodyRect.height() * r) / rows;
+            painter.drawLine(bodyRect.x() + bodyRect.width() / 8, y, bodyRect.right() - bodyRect.width() / 8, y);
+        }
+        for (int c = 1; c < cols; ++c) {
+            const int x = bodyRect.x() + (bodyRect.width() * c) / cols;
+            painter.drawLine(x, bodyRect.y() + bodyRect.height() / 6, x, bodyRect.bottom() - bodyRect.height() / 6);
+        }
+
+        painter.setPen(QPen(pin, qMax(1, intSize / 16)));
+        painter.setBrush(Qt::NoBrush);
+        painter.drawArc(bodyRect.adjusted(-margin / 2, -margin, margin / 2, -margin / 2), 30 * 16, 210 * 16);
+
+        painter.setPen(QPen(fuse, qMax(1, intSize / 20)));
+        const int fuseLength = qMax(2, intSize / 4);
+        painter.drawLine(bodyRect.center(), QPoint(bodyRect.center().x(), bodyRect.y() - fuseLength / 2));
+        break;
+    }
+    }
+
+    painter.end();
+
+    QBrush brush(pixmap);
+    cache.insert(key, brush);
+    return brush;
+}
+
 void Renderer::syncBonuses(const Game& game)
 {
     if (!m_scene)
@@ -354,15 +528,6 @@ void Renderer::syncBonuses(const Game& game)
     const qreal bonusSize = size * 0.6;
     const QPointF offset((size - bonusSize) / 2.0, (size - bonusSize) / 2.0);
     QSet<const Bonus*> seen;
-    auto brushForBonus = [](BonusType type) {
-        switch (type) {
-        case BonusType::Star: return QBrush(QColor(250, 220, 60));
-        case BonusType::Helmet: return QBrush(QColor(120, 200, 255));
-        case BonusType::Clock: return QBrush(QColor(160, 200, 255));
-        case BonusType::Grenade: return QBrush(QColor(230, 90, 80));
-        }
-        return QBrush(QColor(250, 220, 60));
-    };
 
     for (Bonus* bonus : game.bonuses()) {
         if (!bonus || bonus->isCollected())
@@ -371,12 +536,13 @@ void Renderer::syncBonuses(const Game& game)
         seen.insert(bonus);
         QGraphicsRectItem* item = m_bonusItems.value(bonus, nullptr);
         if (!item) {
-            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bonusSize, bonusSize)), QPen(Qt::NoPen), brushForBonus(bonus->type()));
+            item = m_scene->addRect(QRectF(QPointF(0, 0), QSizeF(bonusSize, bonusSize)),
+                                    QPen(Qt::NoPen), bonusBrush(bonus->type(), bonusSize));
             item->setZValue(8);
             m_bonusItems.insert(bonus, item);
         }
 
-        const QBrush brush = brushForBonus(bonus->type());
+        const QBrush brush = bonusBrush(bonus->type(), bonusSize);
         if (item->brush() != brush)
             item->setBrush(brush);
 
