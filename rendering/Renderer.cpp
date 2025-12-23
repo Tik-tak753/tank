@@ -61,6 +61,7 @@ void Renderer::renderFrame(const Game& game, qreal alpha)
 
     updateRenderTransform(game);
     updateBaseBlinking(game);
+    updateBackground(game);
     clearMapLayer();     // DEBUG ONLY
     drawMap(game);       // reflect runtime tile changes
 
@@ -109,6 +110,54 @@ void Renderer::updateRenderTransform(const Game& game)
         m_camera->setTileSize(m_tileScale);
 
     m_scene->setSceneRect(QRectF(QPointF(0.0, 0.0), QSizeF(viewportSize)));
+}
+
+void Renderer::updateBackground(const Game& game)
+{
+    if (!m_scene)
+        return;
+
+    static bool backgroundInitialized = false;
+    if (!backgroundInitialized) {
+        QPixmap pattern(24, 24);
+        pattern.fill(QColor(12, 12, 16));
+        QPainter painter(&pattern);
+        painter.setRenderHint(QPainter::Antialiasing, false);
+        painter.setPen(QColor(22, 22, 28));
+        painter.drawRect(pattern.rect().adjusted(0, 0, -1, -1));
+        painter.drawLine(0, pattern.height() / 2, pattern.width(), pattern.height() / 2);
+        painter.drawLine(pattern.width() / 2, 0, pattern.width() / 2, pattern.height());
+        painter.end();
+        m_scene->setBackgroundBrush(QBrush(pattern));
+        backgroundInitialized = true;
+    }
+
+    const Map* map = game.map();
+    if (!map)
+        return;
+
+    const QSize mapSize = map->size();
+    if (mapSize.isEmpty())
+        return;
+
+    const qreal size = tileSize();
+    const qreal mapWidthInPixels = static_cast<qreal>(mapSize.width()) * size;
+    const qreal mapHeightInPixels = static_cast<qreal>(mapSize.height()) * size;
+    const QRectF mapRect(m_renderOffset, QSizeF(mapWidthInPixels, mapHeightInPixels));
+
+    const qreal frameWidth = std::max(1.0, size * 0.06);
+    const QPen framePen(QColor(70, 70, 80), frameWidth);
+
+    if (!m_mapFrameItem) {
+        m_mapFrameItem = m_scene->addRect(mapRect, framePen, Qt::NoBrush);
+        m_mapFrameItem->setZValue(-10);
+        m_mapFrameItem->setAcceptedMouseButtons(Qt::NoButton);
+        m_mapFrameItem->setAcceptHoverEvents(false);
+        m_mapFrameItem->setFlag(QGraphicsItem::ItemIsFocusable, false);
+    } else {
+        m_mapFrameItem->setRect(mapRect);
+        m_mapFrameItem->setPen(framePen);
+    }
 }
 
 void Renderer::drawMap(const Game& game)

@@ -56,6 +56,7 @@ private:
     void updateHud(const Game& game);
     void updateBaseBlinking(const Game& game);
     void updateRenderTransform(const Game& game);
+    void updateBackground(const Game& game);
     QPointF cellToScene(const QPoint& cell) const;
     QPointF tileToScene(const QPointF& tile) const;
     void clearMapLayer();
@@ -77,6 +78,7 @@ private:
     QHash<const Bonus*, QGraphicsRectItem*> m_bonusItems;
     QList<QGraphicsRectItem*> m_explosionItems;
     HudItem* m_hudItem = nullptr;
+    QGraphicsRectItem* m_mapFrameItem = nullptr;
     QPointF m_renderOffset{0.0, 0.0};
     qreal m_tileScale = TILE_SIZE;
 
