@@ -4,7 +4,11 @@
 #include <array>
 #include <optional>
 
+#include <QCoreApplication>
+#include <QDebug>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <QTextStream>
 
@@ -165,10 +169,52 @@ LevelData LevelLoader::loadSavedLevel(const GameRules& rules) const
 {
     LevelData fallback = loadDefaultLevel(rules);
 
-    const QString filePath = QStringLiteral("assets/maps/Demo.txt");
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    const QString relativePath = QStringLiteral("assets/maps/Demo.txt");
+    qInfo() << "LevelLoader: current working directory:" << QDir::currentPath();
+    const QString applicationDir = QCoreApplication::applicationDirPath();
+    qInfo() << "LevelLoader: applicationDirPath:" << applicationDir;
+
+    auto logCandidate = [](const QString& label, const QString& path) {
+        const QFileInfo info(path);
+        qInfo() << "LevelLoader:" << label << ":" << path
+                << "exists:" << info.exists() << "readable:" << info.isReadable();
+    };
+
+    const QString initialPath = QFileInfo(relativePath).absoluteFilePath();
+    logCandidate(QStringLiteral("initial candidate (working directory)"), initialPath);
+
+    const QList<QString> candidatePaths = {
+        QDir(applicationDir).absoluteFilePath(relativePath),
+        QDir(applicationDir).absoluteFilePath(QStringLiteral("../%1").arg(relativePath)),
+        QDir(applicationDir).absoluteFilePath(QStringLiteral("../../%1").arg(relativePath)),
+        QDir(applicationDir).absoluteFilePath(QStringLiteral("../../../%1").arg(relativePath)),
+        initialPath,
+    };
+
+    QString resolvedPath;
+    for (const QString& candidate : candidatePaths) {
+        logCandidate(QStringLiteral("candidate path"), candidate);
+        const QFileInfo info(candidate);
+        if (info.exists() && info.isReadable()) {
+            resolvedPath = info.absoluteFilePath();
+            break;
+        }
+    }
+
+    if (resolvedPath.isEmpty()) {
+        resolvedPath = initialPath;
+        qWarning() << "LevelLoader: no readable saved level found; using initial path"
+                   << resolvedPath;
+    }
+
+    qInfo() << "LevelLoader: resolved path to saved level:" << resolvedPath;
+
+    QFile file(resolvedPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "LevelLoader: failed to open saved level:" << file.errorString();
+        qWarning() << "LevelLoader: falling back to default level";
         return fallback;
+    }
 
     QTextStream stream(&file);
     QVector<QVector<int>> rows;
