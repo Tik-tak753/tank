@@ -343,8 +343,8 @@ void Renderer::syncBonuses(const Game& game)
 void Renderer::syncTanks(const Game& game, qreal alpha)
 {
     const qreal size = tileSize();
-    const qreal barrelLength = size * 0.6;
-    const qreal barrelThickness = size * 0.2;
+    const qreal barrelLength = size * 0.65;
+    const qreal barrelThickness = size * 0.16;
     const int intSize = qMax(1, qRound(size));
     QSet<const Tank*> seen;
 
@@ -370,11 +370,14 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
         if (cached != cache.constEnd())
             return cached.value();
 
-        const QColor trackColor = bodyColor.darker(170);
-        const QColor trackHighlight = trackColor.lighter(130);
-        const QColor bodyHighlight = bodyColor.lighter(120);
-        const QColor bodyShadow = bodyColor.darker(140);
-        const QColor turretColor = bodyColor.lighter(110);
+        const QColor trackColor = bodyColor.darker(190);
+        const QColor trackHighlight = trackColor.lighter(135);
+        const QColor bodyHighlight = bodyColor.lighter(125);
+        const QColor bodyShadow = bodyColor.darker(160);
+        const QColor turretColor = bodyColor.lighter(115);
+        const QColor turretCore = turretColor.darker(135);
+        const QColor topLayer = bodyColor.lighter(110);
+        const QColor bottomLayer = bodyColor.darker(115);
 
         QPixmap pixmap(intSize, intSize);
         pixmap.fill(Qt::transparent);
@@ -383,15 +386,25 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
 
         const int trackWidth = qMax(1, intSize / 6);
         const int bodyWidth = intSize - 2 * trackWidth;
-        const int treadSegment = qMax(1, intSize / 8);
-        for (int y = 0; y < intSize; y += treadSegment) {
-            const int h = qMin(treadSegment, intSize - y);
-            const QColor treadColor = ((y / treadSegment) % 2) ? trackColor : trackHighlight;
-            painter.fillRect(0, y, trackWidth, h, treadColor);
-            painter.fillRect(intSize - trackWidth, y, trackWidth, h, treadColor);
+
+        painter.fillRect(0, 0, trackWidth, intSize, trackColor);
+        painter.fillRect(intSize - trackWidth, 0, trackWidth, intSize, trackColor);
+
+        const int trackEdge = qMax(1, intSize / 16);
+        painter.fillRect(0, 0, trackWidth, trackEdge, trackHighlight);
+        painter.fillRect(intSize - trackWidth, intSize - trackEdge, trackWidth, trackEdge, trackHighlight);
+
+        const int treadSegments = intSize >= 12 ? 3 : 2;
+        const int treadHeight = qMax(1, intSize / (treadSegments * 2));
+        for (int i = 0; i < treadSegments; ++i) {
+            const int y = ((i + 1) * intSize) / (treadSegments + 1) - treadHeight / 2;
+            painter.fillRect(0, y, trackWidth, treadHeight, trackHighlight);
+            painter.fillRect(intSize - trackWidth, y, trackWidth, treadHeight, trackHighlight);
         }
 
-        painter.fillRect(trackWidth, 0, bodyWidth, intSize, bodyColor);
+        const int bodyMid = intSize / 2;
+        painter.fillRect(trackWidth, 0, bodyWidth, bodyMid, topLayer);
+        painter.fillRect(trackWidth, bodyMid, bodyWidth, intSize - bodyMid, bottomLayer);
         const int edge = qMax(1, intSize / 16);
         painter.fillRect(trackWidth, 0, bodyWidth, edge, bodyHighlight);
         painter.fillRect(trackWidth, intSize - edge, bodyWidth, edge, bodyShadow);
@@ -408,6 +421,11 @@ void Renderer::syncTanks(const Game& game, qreal alpha)
                          turretSize - 2 * turretInset, turretInset, bodyHighlight);
         painter.fillRect(turretX + turretInset, turretY + turretSize - 2 * turretInset,
                          turretSize - 2 * turretInset, turretInset, bodyShadow);
+
+        const int coreSize = qMax(1, turretSize / 3);
+        const int coreX = turretX + (turretSize - coreSize) / 2;
+        const int coreY = turretY + (turretSize - coreSize) / 2;
+        painter.fillRect(coreX, coreY, coreSize, coreSize, turretCore);
 
         painter.end();
 
