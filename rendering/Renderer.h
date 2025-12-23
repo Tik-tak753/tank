@@ -23,6 +23,7 @@ class Map;
 class Tank;
 class Bullet;
 class Bonus;
+class HudItem;
 
 struct Explosion
 {
@@ -73,7 +74,7 @@ private:
     QHash<const Bullet*, QGraphicsRectItem*> m_bulletItems;
     QHash<const Bonus*, QGraphicsRectItem*> m_bonusItems;
     QList<QGraphicsRectItem*> m_explosionItems;
-    QGraphicsTextItem* m_hudItem = nullptr;
+    HudItem* m_hudItem = nullptr;
     QPointF m_renderOffset{0.0, 0.0};
     qreal m_tileScale = TILE_SIZE;
 
@@ -86,7 +87,6 @@ private:
     QHash<const Bullet*, QPoint> m_lastBulletCells;
     QHash<const Bullet*, bool> m_lastBulletExplosions;
     QSet<const Tank*> m_destroyedTanks;
-    QString m_lastHudStatus;
 
     QHash<int, QBrush> m_tileBrushes;
     int m_tileBrushSize = 0;
