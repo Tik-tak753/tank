@@ -1,6 +1,7 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <QBrush>
 #include <QHash>
 #include <QList>
 #include <QPoint>
@@ -56,6 +57,8 @@ private:
     QPointF tileToScene(const QPointF& tile) const;
     void clearMapLayer();
     qreal tileSize() const;
+    QBrush tileBrush(int tileType, qreal size);
+    void rebuildTileBrushes(qreal size);
 
     QGraphicsScene* m_scene = nullptr;
     SpriteManager* m_sprites = nullptr;
@@ -82,6 +85,9 @@ private:
     QHash<const Bullet*, bool> m_lastBulletExplosions;
     QSet<const Tank*> m_destroyedTanks;
     QString m_lastHudStatus;
+
+    QHash<int, QBrush> m_tileBrushes;
+    int m_tileBrushSize = 0;
 };
 
 #endif // RENDERER_H
