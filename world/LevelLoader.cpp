@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QStringList>
 #include <QTextStream>
 
 #include "world/Tile.h"
@@ -289,7 +290,22 @@ LevelData LevelLoader::loadFromText(const QStringList& lines, const GameRules& r
 namespace {
 QString mapsDirectory()
 {
-    return QDir(QDir::currentPath()).absoluteFilePath(QStringLiteral("assets/maps"));
+    const QString currentPath = QDir::currentPath();
+    const QStringList candidates = {
+        QStringLiteral("assets/maps"),
+        QStringLiteral("../assets/maps"),
+        QStringLiteral("../../assets/maps"),
+        QStringLiteral("../../../assets/maps"),
+    };
+
+    for (const QString& candidate : candidates) {
+        const QString absoluteCandidate = QDir(currentPath).absoluteFilePath(candidate);
+        const QDir dir(absoluteCandidate);
+        if (dir.exists() && dir.isReadable())
+            return dir.absolutePath();
+    }
+
+    return QDir(currentPath).absoluteFilePath(QStringLiteral("assets/maps"));
 }
 
 QStringList scanLevelFiles()
