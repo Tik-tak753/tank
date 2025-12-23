@@ -7,11 +7,14 @@
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
 #include <QGraphicsView>
+#include <QPainter>
 #include <QFont>
 #include <QPen>
+#include <QPixmap>
 #include <QSet>
 #include <QtGlobal>
 #include <algorithm>
+#include <functional>
 #include <utility>
 #include <QString>
 
@@ -117,6 +120,7 @@ void Renderer::drawMap(const Game& game)
     const Map* map = game.map();
     if (!map)
         return;
+    rebuildTileBrushes(tileSize());
     const Base* base = game.base();
     const QPoint baseCell = base ? base->cell() : QPoint(-1, -1);
     const bool baseDestroyed = base && base->isDestroyed();
@@ -135,13 +139,19 @@ void Renderer::drawMap(const Game& game)
                 continue;
 
             QColor color = Qt::gray;
+            QBrush brush;
             qreal zValue = 0;
-            if (tile.type == TileType::Brick)
+            if (tile.type == TileType::Brick) {
                 color = QColor(193, 68, 14);
-            if (tile.type == TileType::Steel)
+                brush = tileBrush(static_cast<int>(TileType::Brick), size);
+            }
+            if (tile.type == TileType::Steel) {
                 color = QColor(160, 160, 160);
+                brush = tileBrush(static_cast<int>(TileType::Steel), size);
+            }
             if (tile.type == TileType::Water) {
                 color = QColor(60, 120, 200);
+                brush = tileBrush(static_cast<int>(TileType::Water), size);
                 zValue = 2;
             }
             if (tile.type == TileType::Ice) {
@@ -150,6 +160,7 @@ void Renderer::drawMap(const Game& game)
             }
             if (tile.type == TileType::Forest) {
                 color = QColor(50, 120, 60, 210);
+                brush = tileBrush(static_cast<int>(TileType::Forest), size);
                 zValue = 15;
             }
             if (tile.type == TileType::Base) {
@@ -162,7 +173,10 @@ void Renderer::drawMap(const Game& game)
             }
 
             const QPointF pos = cellToScene(cell);
-            QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), QBrush(color));
+            QBrush fillBrush = brush;
+            if (fillBrush.style() == Qt::NoBrush && fillBrush.texture().isNull())
+                fillBrush = QBrush(color);
+            QGraphicsRectItem* item = m_scene->addRect(QRectF(pos, QSizeF(size, size)), QPen(Qt::NoPen), fillBrush);
             item->setZValue(zValue);
             m_mapItems.append(item);
 
@@ -175,6 +189,103 @@ void Renderer::drawMap(const Game& game)
             }
         }
     }
+}
+
+QBrush Renderer::tileBrush(int tileType, qreal size)
+{
+    rebuildTileBrushes(size);
+    return m_tileBrushes.value(tileType, QBrush());
+}
+
+void Renderer::rebuildTileBrushes(qreal size)
+{
+    const int intSize = qMax(1, qRound(size));
+    if (m_tileBrushSize == intSize)
+        return;
+
+    m_tileBrushSize = intSize;
+    m_tileBrushes.clear();
+
+    auto makeBrush = [&](const std::function<void(QPainter&, int)>& drawer) {
+        QPixmap pixmap(intSize, intSize);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing, false);
+        drawer(painter, intSize);
+        painter.end();
+        return QBrush(pixmap);
+    };
+
+    m_tileBrushes.insert(static_cast<int>(TileType::Brick), makeBrush([](QPainter& painter, int s) {
+        const QColor mortar(130, 80, 60);
+        const QColor brick(193, 68, 14);
+        const QColor highlight = brick.lighter(130);
+        const QColor shadow = brick.darker(120);
+
+        painter.fillRect(0, 0, s, s, mortar);
+
+        const int gap = qMax(1, s / 12);
+        const int brickW = (s - gap) / 2;
+        const int brickH = (s - gap) / 2;
+        const int edge = qMax(1, brickH / 6);
+
+        for (int row = 0; row < 2; ++row) {
+            for (int col = 0; col < 2; ++col) {
+                const int x = col * (brickW + gap);
+                const int y = row * (brickH + gap);
+                QRect rect(x, y, brickW, brickH);
+                painter.fillRect(rect, brick);
+                painter.fillRect(QRect(rect.x(), rect.y(), rect.width(), edge), highlight);
+                painter.fillRect(QRect(rect.x(), rect.y() + rect.height() - edge, rect.width(), edge), shadow);
+            }
+        }
+    }));
+
+    m_tileBrushes.insert(static_cast<int>(TileType::Steel), makeBrush([](QPainter& painter, int s) {
+        const QColor border(90, 90, 100);
+        const QColor center(185, 185, 195);
+        const QColor groove(70, 70, 80);
+
+        const int borderSize = qMax(1, s / 10);
+        const int inset = borderSize * 2;
+        const int grooveWidth = qMax(1, s / 16);
+
+        painter.fillRect(0, 0, s, s, border);
+        painter.fillRect(borderSize, borderSize, s - 2 * borderSize, s - 2 * borderSize, center);
+        painter.fillRect(inset, s / 2 - grooveWidth / 2, s - 2 * inset, grooveWidth, groove);
+        painter.fillRect(s / 2 - grooveWidth / 2, inset, grooveWidth, s - 2 * inset, groove);
+    }));
+
+    m_tileBrushes.insert(static_cast<int>(TileType::Water), makeBrush([](QPainter& painter, int s) {
+        const QColor deep(40, 100, 180);
+        const QColor ripple(90, 160, 230);
+
+        painter.fillRect(0, 0, s, s, deep);
+
+        const int stripe = qMax(1, s / 8);
+        for (int y = 0; y < s; y += stripe * 2)
+            painter.fillRect(0, y, s, stripe, ripple);
+
+        const int accent = qMax(1, stripe / 2);
+        painter.fillRect(0, stripe / 2, s, accent, deep.lighter(115));
+    }));
+
+    m_tileBrushes.insert(static_cast<int>(TileType::Forest), makeBrush([](QPainter& painter, int s) {
+        const QColor canopy(40, 120, 70, 140);
+        const QColor leafA(60, 150, 80, 180);
+        const QColor leafB(30, 90, 50, 160);
+
+        painter.fillRect(0, 0, s, s, canopy);
+
+        const int patch = qMax(2, s / 6);
+        for (int y = 0; y < s; y += patch) {
+            const int offset = (y / patch) % 2 ? patch / 2 : 0;
+            for (int x = offset; x < s; x += patch) {
+                const QColor color = ((x / patch + y / patch) % 2) ? leafA : leafB;
+                painter.fillRect(x, y, patch, patch, color);
+            }
+        }
+    }));
 }
 
 void Renderer::syncBonuses(const Game& game)
