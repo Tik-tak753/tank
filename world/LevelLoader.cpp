@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <utility>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -186,7 +187,7 @@ LevelData loadLevelFromNumeric(const QVector<QVector<int>>& rows, const QSize& d
         data.enemySpawns.append(spawn);
     }
 
-    return data.map ? data : fallback;
+    return data.map ? data : std::move(fallback);
 }
 } // namespace
 
@@ -299,7 +300,7 @@ QStringList scanLevelFiles()
 
 LevelData LevelLoader::loadLevelByName(const QString& fileName, const GameRules& rules) const
 {
-    const LevelData fallback = loadDefaultLevel(rules);
+    LevelData fallback = loadDefaultLevel(rules);
 
     const QString baseDir = mapsDirectory();
     const QFileInfo info(QDir(baseDir).filePath(fileName));
@@ -314,7 +315,7 @@ LevelData LevelLoader::loadLevelByName(const QString& fileName, const GameRules&
     QVector<QVector<int>> rows;
     QSize declaredSize;
     if (parseNumericLevel(stream, rules, declaredSize, rows)) {
-        return loadLevelFromNumeric(rows, declaredSize, rules, fallback);
+        return loadLevelFromNumeric(rows, declaredSize, rules, std::move(fallback));
     }
 
     file.seek(0);
@@ -333,7 +334,7 @@ LevelData LevelLoader::loadLevelByIndex(int index, const GameRules& rules) const
     if (files.isEmpty())
         return loadDefaultLevel(rules);
 
-    const int clampedIndex = std::clamp(index, 0, files.size() - 1);
+    const qsizetype clampedIndex = std::clamp<qsizetype>(static_cast<qsizetype>(index), 0, files.size() - 1);
     return loadLevelByName(files.at(clampedIndex), rules);
 }
 
@@ -399,7 +400,7 @@ LevelData LevelLoader::loadSavedLevel(const GameRules& rules) const
     if (!parseNumericLevel(stream, rules, declaredSize, rows))
         return fallback;
 
-    return loadLevelFromNumeric(rows, declaredSize, rules, fallback);
+    return loadLevelFromNumeric(rows, declaredSize, rules, std::move(fallback));
 }
 
 LevelData LevelLoader::loadDefaultLevel(const GameRules& rules) const
