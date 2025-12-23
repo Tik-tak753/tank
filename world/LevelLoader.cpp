@@ -187,7 +187,10 @@ LevelData loadLevelFromNumeric(const QVector<QVector<int>>& rows, const QSize& d
         data.enemySpawns.append(spawn);
     }
 
-    return data.map ? data : std::move(fallback);
+    if (data.map)
+        return data;
+
+    return std::move(fallback);
 }
 } // namespace
 
@@ -325,7 +328,11 @@ LevelData LevelLoader::loadLevelByName(const QString& fileName, const GameRules&
 
     LevelData data = loadFromText(lines, rules);
     data.loadedFromFile = true;
-    return data.map ? data : fallback;
+
+    if (data.map)
+        return data;
+
+    return fallback;
 }
 
 LevelData LevelLoader::loadLevelByIndex(int index, const GameRules& rules) const
