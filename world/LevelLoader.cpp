@@ -165,7 +165,7 @@ LevelData LevelLoader::loadSavedLevel(const GameRules& rules) const
 {
     LevelData fallback = loadDefaultLevel(rules);
 
-    const QString filePath = QStringLiteral("assets/maps/custom_map.txt");
+    const QString filePath = QStringLiteral("assets/maps/Demo.txt");
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return fallback;
