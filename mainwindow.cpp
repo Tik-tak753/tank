@@ -85,6 +85,9 @@ MainWindow::MainWindow(QWidget *parent)
 
         if (m_menuSystem)
             m_menuSystem->renderMenus();
+
+        if (m_levelEditor)
+            m_levelEditor->updateUi();
     });
     m_timer->start(kFixedTickMs);
 }

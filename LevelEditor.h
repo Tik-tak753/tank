@@ -1,8 +1,11 @@
 #ifndef LEVEL_EDITOR_H
 #define LEVEL_EDITOR_H
 
+#include <QColor>
+#include <QRectF>
 #include <QSize>
 #include <QVector>
+#include <QFont>
 #include <optional>
 #include <QString>
 
@@ -13,6 +16,8 @@ class QKeyEvent;
 class QMouseEvent;
 class QPoint;
 class QPointF;
+class QGraphicsRectItem;
+class QGraphicsTextItem;
 
 enum class TileType;
 
@@ -27,6 +32,7 @@ public:
 
     void setGame(Game* game);
     void setView(QGraphicsView* view);
+    void updateUi();
 
     bool handleKeyPress(QKeyEvent& event);
     bool handleMousePress(QMouseEvent& event);
@@ -48,10 +54,23 @@ private:
     QVector<QVector<int>> buildTileMatrix() const;
     int tileCode(TileType type) const;
     static std::optional<TileType> tileTypeFromCode(int code);
+    void ensurePalette();
+    void updatePaletteGeometry();
+    void updatePaletteSelection();
+    bool handlePaletteClick(const QPointF& scenePos);
+    QColor tileColor(TileType type) const;
+    QString tileLabel(TileType type) const;
 
     Game* m_game = nullptr;
     QGraphicsView* m_view = nullptr;
     TileType m_selectedType;
+    QGraphicsRectItem* m_palettePanel = nullptr;
+    QGraphicsRectItem* m_paletteSelection = nullptr;
+    QVector<QGraphicsRectItem*> m_paletteSwatches;
+    QVector<QGraphicsTextItem*> m_paletteLabels;
+    QVector<TileType> m_paletteTypes;
+    QRectF m_paletteBounds{0.0, 0.0, 0.0, 0.0};
+    QFont m_paletteFont;
 };
 
 #endif // LEVEL_EDITOR_H

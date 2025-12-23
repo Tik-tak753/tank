@@ -2,12 +2,21 @@
 
 #include <QFile>
 #include <QFileDialog>
+#include <QGraphicsRectItem>
+#include <QGraphicsScene>
+#include <QGraphicsTextItem>
 #include <QGraphicsView>
+#include <QFont>
+#include <QFontMetricsF>
 #include <QKeyEvent>
+#include <QBrush>
+#include <QColor>
+#include <QPen>
 #include <QObject>
 #include <QMouseEvent>
 #include <QPoint>
 #include <QPointF>
+#include <QRectF>
 #include <QSize>
 #include <QRegularExpression>
 #include <QStringList>
@@ -67,6 +76,12 @@ std::array<QPoint, 3> defaultEnemySpawns(const QSize& size)
 LevelEditor::LevelEditor()
     : m_selectedType(TileType::Brick)
 {
+    m_paletteTypes = {TileType::Empty,
+                      TileType::Brick,
+                      TileType::Steel,
+                      TileType::Forest,
+                      TileType::Water,
+                      TileType::Ice};
 }
 
 void LevelEditor::setGame(Game* game)
@@ -77,6 +92,33 @@ void LevelEditor::setGame(Game* game)
 void LevelEditor::setView(QGraphicsView* view)
 {
     m_view = view;
+}
+
+void LevelEditor::updateUi()
+{
+    if (!m_view)
+        return;
+
+    ensurePalette();
+
+    const bool active = isActive();
+    const auto setVisible = [active](auto* item) {
+        if (item)
+            item->setVisible(active);
+    };
+
+    setVisible(m_palettePanel);
+    setVisible(m_paletteSelection);
+    for (QGraphicsRectItem* item : m_paletteSwatches)
+        setVisible(item);
+    for (QGraphicsTextItem* item : m_paletteLabels)
+        setVisible(item);
+
+    if (!active)
+        return;
+
+    updatePaletteGeometry();
+    updatePaletteSelection();
 }
 
 bool LevelEditor::handleKeyPress(QKeyEvent& event)
@@ -103,6 +145,7 @@ bool LevelEditor::handleKeyPress(QKeyEvent& event)
 
     if (nextType != m_selectedType) {
         m_selectedType = nextType;
+        updatePaletteSelection();
         event.accept();
         return true;
     }
@@ -128,6 +171,11 @@ bool LevelEditor::handleMousePress(QMouseEvent& event)
         return false;
 
     const QPointF scenePos = m_view->mapToScene(viewportPos);
+    if (handlePaletteClick(scenePos)) {
+        event.accept();
+        return true;
+    }
+
     const std::optional<QPoint> cell = sceneToCell(scenePos);
     if (!cell.has_value())
         return false;
@@ -265,6 +313,174 @@ TileType LevelEditor::selectedTileForKey(int key) const
 TileType LevelEditor::currentTileSelection() const
 {
     return m_selectedType;
+}
+
+void LevelEditor::ensurePalette()
+{
+    if (!m_view || !m_view->scene())
+        return;
+
+    QGraphicsScene* scene = m_view->scene();
+    if (m_palettePanel && m_palettePanel->scene() != scene) {
+        m_palettePanel = nullptr;
+        m_paletteSelection = nullptr;
+        m_paletteSwatches.clear();
+        m_paletteLabels.clear();
+    }
+
+    if (!m_palettePanel) {
+        m_palettePanel = scene->addRect(QRectF(), QPen(QColor(80, 80, 90, 220)), QBrush(QColor(18, 18, 22, 235)));
+        m_palettePanel->setZValue(900);
+        m_palettePanel->setAcceptedMouseButtons(Qt::NoButton);
+        m_palettePanel->setAcceptHoverEvents(false);
+    }
+
+    if (!m_paletteSelection) {
+        m_paletteSelection = scene->addRect(QRectF(), QPen(QColor(255, 220, 120), 2.0), Qt::NoBrush);
+        m_paletteSelection->setZValue(905);
+        m_paletteSelection->setAcceptedMouseButtons(Qt::NoButton);
+        m_paletteSelection->setAcceptHoverEvents(false);
+    }
+
+    while (m_paletteSwatches.size() < m_paletteTypes.size()) {
+        QGraphicsRectItem* item = scene->addRect(QRectF(), QPen(QColor(0, 0, 0, 0)), QBrush(Qt::gray));
+        item->setZValue(902);
+        item->setAcceptedMouseButtons(Qt::NoButton);
+        item->setAcceptHoverEvents(false);
+        m_paletteSwatches.append(item);
+    }
+    while (m_paletteLabels.size() < m_paletteTypes.size()) {
+        QGraphicsTextItem* text = scene->addText(QString());
+        text->setDefaultTextColor(QColor(230, 230, 230));
+        text->setZValue(903);
+        text->setAcceptedMouseButtons(Qt::NoButton);
+        text->setAcceptHoverEvents(false);
+        m_paletteLabels.append(text);
+    }
+}
+
+void LevelEditor::updatePaletteGeometry()
+{
+    if (!m_view || !m_view->scene() || !m_palettePanel)
+        return;
+
+    const QRectF sceneRect = m_view->mapToScene(m_view->viewport()->rect()).boundingRect();
+    if (!sceneRect.isValid() || sceneRect.isNull())
+        return;
+
+    const qreal margin = 12.0;
+    const qreal padding = 10.0;
+    const qreal spacing = 8.0;
+    const qreal swatchSize = std::clamp(sceneRect.width() * 0.035, 22.0, 40.0);
+
+    m_paletteFont.setStyleHint(QFont::Monospace, QFont::PreferBitmap);
+    m_paletteFont.setWeight(QFont::DemiBold);
+    m_paletteFont.setPixelSize(std::clamp(static_cast<int>(std::round(swatchSize * 0.55)), 10, 16));
+
+    const QFontMetricsF metrics(m_paletteFont);
+    qreal maxLabelWidth = 0.0;
+    for (int i = 0; i < m_paletteTypes.size(); ++i) {
+        const QString label = QStringLiteral("%1  %2")
+                                  .arg(i + 1)
+                                  .arg(tileLabel(m_paletteTypes[i]));
+        maxLabelWidth = std::max(maxLabelWidth, metrics.horizontalAdvance(label));
+        if (i < m_paletteLabels.size()) {
+            m_paletteLabels[i]->setFont(m_paletteFont);
+            m_paletteLabels[i]->setPlainText(label);
+        }
+    }
+
+    const qreal panelWidth = padding * 2.0 + swatchSize + spacing + maxLabelWidth;
+    const qreal panelHeight = padding * 2.0 + m_paletteTypes.size() * swatchSize
+                              + std::max(0, static_cast<int>(m_paletteTypes.size()) - 1) * spacing;
+
+    const QPointF topLeft(sceneRect.right() - panelWidth - margin, sceneRect.top() + margin);
+    m_paletteBounds = QRectF(topLeft, QSizeF(panelWidth, panelHeight));
+    m_palettePanel->setRect(m_paletteBounds);
+
+    for (int i = 0; i < m_paletteTypes.size(); ++i) {
+        const qreal y = m_paletteBounds.top() + padding + i * (swatchSize + spacing);
+        const QRectF swatchRect(m_paletteBounds.left() + padding, y, swatchSize, swatchSize);
+        if (i < m_paletteSwatches.size()) {
+            QGraphicsRectItem* swatch = m_paletteSwatches[i];
+            swatch->setRect(swatchRect);
+            swatch->setBrush(tileColor(m_paletteTypes[i]));
+        }
+
+        if (i < m_paletteLabels.size()) {
+            QGraphicsTextItem* label = m_paletteLabels[i];
+            const QPointF labelPos(swatchRect.right() + spacing, y + (swatchSize - metrics.height()) / 2.0);
+            label->setPos(labelPos);
+        }
+    }
+}
+
+void LevelEditor::updatePaletteSelection()
+{
+    if (!m_paletteSelection)
+        return;
+
+    for (int i = 0; i < m_paletteTypes.size() && i < m_paletteSwatches.size(); ++i) {
+        if (m_paletteTypes[i] == m_selectedType) {
+            const QRectF swatchRect = m_paletteSwatches[i]->rect();
+            m_paletteSelection->setRect(swatchRect.adjusted(-2.0, -2.0, 2.0, 2.0));
+            m_paletteSelection->setVisible(true);
+            return;
+        }
+    }
+
+    m_paletteSelection->setVisible(false);
+}
+
+bool LevelEditor::handlePaletteClick(const QPointF& scenePos)
+{
+    if (!isActive() || m_paletteBounds.isNull())
+        return false;
+
+    if (!m_paletteBounds.contains(scenePos))
+        return false;
+
+    for (int i = 0; i < m_paletteSwatches.size() && i < m_paletteTypes.size(); ++i) {
+        if (m_paletteSwatches[i]->rect().contains(scenePos)) {
+            if (m_selectedType != m_paletteTypes[i]) {
+                m_selectedType = m_paletteTypes[i];
+                updatePaletteSelection();
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+QColor LevelEditor::tileColor(TileType type) const
+{
+    switch (type) {
+    case TileType::Empty: return QColor(30, 30, 40);
+    case TileType::Brick: return QColor(193, 68, 14);
+    case TileType::Steel: return QColor(160, 160, 160);
+    case TileType::Forest: return QColor(50, 120, 60, 210);
+    case TileType::Water: return QColor(60, 120, 200);
+    case TileType::Ice: return QColor(210, 230, 240);
+    case TileType::Base: return QColor(230, 230, 0);
+    }
+
+    return QColor(30, 30, 40);
+}
+
+QString LevelEditor::tileLabel(TileType type) const
+{
+    switch (type) {
+    case TileType::Empty: return QStringLiteral("Empty");
+    case TileType::Brick: return QStringLiteral("Brick");
+    case TileType::Steel: return QStringLiteral("Steel");
+    case TileType::Forest: return QStringLiteral("Forest");
+    case TileType::Water: return QStringLiteral("Water");
+    case TileType::Ice: return QStringLiteral("Ice");
+    case TileType::Base: return QStringLiteral("Base");
+    }
+
+    return QStringLiteral("Unknown");
 }
 
 bool LevelEditor::saveCurrentMap()
