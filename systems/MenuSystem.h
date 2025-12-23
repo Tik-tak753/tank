@@ -51,6 +51,7 @@ private:
     void buildPauseMenu();
     void buildGameOverMenu(bool victory);
     void buildAboutMenu();
+    void buildLevelSelectMenu();
     void startGame();
     void startEditor();
     void pauseGame();

@@ -17,6 +17,7 @@
 
 #include "core/Game.h"
 #include "systems/InputSystem.h"
+#include "world/LevelLoader.h"
 
 MenuSystem::MenuSystem() = default;
 
@@ -153,6 +154,7 @@ void MenuSystem::buildMainMenu()
 {
     QVector<MenuEntry> entries;
     entries.append(MenuEntry{QStringLiteral("Start Game"), [this]() { startGame(); }});
+    entries.append(MenuEntry{QStringLiteral("Select Level"), [this]() { buildLevelSelectMenu(); }});
     entries.append(MenuEntry{QStringLiteral("Editor"), [this]() { startEditor(); }});
     entries.append(MenuEntry{QStringLiteral("About"), [this]() { buildAboutMenu(); }});
     entries.append(MenuEntry{QStringLiteral("Exit"), [this]() {
@@ -198,6 +200,31 @@ void MenuSystem::buildAboutMenu()
     activateMenu(MenuState::About, QStringLiteral("ABOUT"), std::move(entries));
     m_selectedIndex = -1;
     updateSelectionVisuals();
+}
+
+void MenuSystem::buildLevelSelectMenu()
+{
+    QVector<MenuEntry> entries;
+
+    LevelLoader loader;
+    const QStringList levelFiles = loader.availableLevelFiles();
+
+    for (int i = 0; i < levelFiles.size(); ++i) {
+        const QString label = QStringLiteral("Level %1").arg(i + 1);
+        entries.append(MenuEntry{label, [this, i]() {
+            if (m_game)
+                m_game->setPendingLevelIndex(i);
+            startGame();
+        }});
+    }
+
+    if (entries.isEmpty()) {
+        entries.append(MenuEntry{QStringLiteral("No levels found"), nullptr});
+    }
+
+    entries.append(MenuEntry{QStringLiteral("Back"), [this]() { buildMainMenu(); }});
+
+    activateMenu(MenuState::MainMenu, QStringLiteral("SELECT LEVEL"), std::move(entries));
 }
 
 void MenuSystem::startGame()
