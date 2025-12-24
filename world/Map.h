@@ -19,10 +19,15 @@ public:
     explicit Map(const QSize& size) : Map(size.width(), size.height()) {}
 
     QSize size() const { return m_size; }
+    // Перевіряє, чи належить клітинка межам карти
     bool isInside(const QPoint& cell) const;
+    // Повертає копію тайлу за координатами
     Tile tile(const QPoint& cell) const;
+    // Дає змінюваний доступ до тайлу
     Tile& tileRef(const QPoint& cell);
+    // Встановлює новий тайл у клітинку
     void setTile(const QPoint& cell, const Tile& tile);
+    // Перевіряє прохідність для танків з урахуванням масок колізій
     bool isWalkable(const QPoint& cell) const;
 
 private:

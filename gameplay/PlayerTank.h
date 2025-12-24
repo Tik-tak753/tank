@@ -24,10 +24,15 @@ public:
     void setInput(InputSystem* input);
     void setMap(const Map* map);
 
+    // Оновлення стану зчитує ввід і застосовує бонуси
     void update() override;
+    // Оновлює рух із часовою дельтою
     void updateWithDelta(int deltaMs) override;
+    // Перерахунок швидкості кулі залежно від зірок
     int bulletStepIntervalMs() const override;
+    // Дозвіл пробивати сталь після апгрейдів
     bool bulletCanPierceSteel() const override;
+    // Враховує невразливість від бонусів
     bool receiveDamage(int dmg) override;
 
     void activateInvincibility(int durationMs);

@@ -27,8 +27,10 @@ public:
     BonusType type() const { return m_type; }
     bool isCollected() const { return m_collected; }
     void collect();
+    // Застосовує ефект бонусу до гри й гравця
     virtual void apply(Game& game, PlayerTank& player) = 0;
 
+    // Мерехтіння/таймер життя бонусу
     void update(int deltaMs) override;
 
 private:

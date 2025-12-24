@@ -44,15 +44,22 @@ public:
     void setSpriteManager(SpriteManager* manager);
     void setCamera(Camera* camera);
 
+    // Головна точка входу для малювання кадру з інтерполяцією alpha
     void renderFrame(const Game& game, qreal alpha);
 
 private:
+    // Ледача ініціалізація шарів карти та допоміжних елементів
     void initializeMap(const Game& game);
+    // Оновлює прямокутники тайлів на сцені
     void drawMap(const Game& game);
+    // Синхронізує бонуси з об'єктами сцени
     void syncBonuses(const Game& game);
+    // Інтерполює позиції танків між тиками
     void syncTanks(const Game& game, qreal alpha);
+    // Малює кулі та вибухи
     void syncBullets(const Game& game, qreal alpha);
     void updateExplosions();
+    // Оновлює HUD життів/очок/статусу
     void updateHud(const Game& game);
     void updateBaseBlinking(const Game& game);
     void updateRenderTransform(const Game& game);

@@ -25,6 +25,7 @@ public:
     QPoint baseCell() const { return m_baseCell; }
     const ScoreRules& scoreRules() const { return m_scoreRules; }
 
+    // Налаштовує параметри сесії без зміни логіки Game
     void setMapSize(const QSize& size);
     void setPlayerLives(int lives);
     void setEnemiesPerWave(int enemies);

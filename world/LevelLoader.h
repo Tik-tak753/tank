@@ -27,11 +27,17 @@ struct LevelData
 class LevelLoader
 {
 public:
+    // Завантажує дефолтну карту, побудовану за поточними правилами
     LevelData loadDefaultLevel(const GameRules& rules) const;
+    // Читає рівень із файлу за ім'ям, якщо він існує
     LevelData loadLevelByName(const QString& fileName, const GameRules& rules) const;
+    // Вибирає карту за індексом у списку доступних файлів
     LevelData loadLevelByIndex(int index, const GameRules& rules) const;
+    // Повертає перелік текстових карт із каталогу
     QStringList availableLevelFiles() const;
+    // Створює рівень із рядків текстової матриці
     LevelData loadFromText(const QStringList& lines, const GameRules& rules) const;
+    // Пробує прочитати останню збережену карту редактора
     LevelData loadSavedLevel(const GameRules& rules) const;
 };
 
