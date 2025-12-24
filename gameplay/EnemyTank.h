@@ -29,8 +29,11 @@ public:
     void setFrozen(bool frozen) { m_frozen = frozen; }
     bool isFrozen() const { return m_frozen; }
 
+    // Простий AI: рухається та стріляє за таймерами
     void update() override;
+    // Обробка руху з урахуванням заморозки та перезарядки
     void updateWithDelta(int deltaMs) override;
+    // Рахує попадання й перемикає ефект броні
     bool receiveDamage(int dmg) override;
 
     bool isHitFeedbackActive() const { return m_hitFeedbackTimerMs > 0; }

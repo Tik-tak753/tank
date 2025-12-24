@@ -29,6 +29,7 @@ public:
     virtual ~Tank() = default;
 
     TankType getType();
+    // Повертає зміщення у клітинках для заданого напряму
     static QPoint directionDelta(Direction dir);
     void setType(TankType type);
 
@@ -52,12 +53,18 @@ public:
     WeaponSystem& weapon() { return m_weapon; }
 
     void requestFire() { m_fireRequested = true; }
+    // Реакція на отриману шкоду; повертає true, якщо танк ще живий
     virtual bool receiveDamage(int dmg);
 
+    // Базове оновлення без врахування дельти (анімовані таймери)
     virtual void update();
+    // Оновлення логіки руху/перезарядки з урахуванням deltaMs
     virtual void updateWithDelta(int deltaMs);
+    // Створює нову кулю, якщо перезарядка завершена
     virtual std::unique_ptr<Bullet> tryShoot();
+    // Частота кроків кулі у мілісекундах
     virtual int bulletStepIntervalMs() const;
+    // Чи може куля пробивати сталеві стіни
     virtual bool bulletCanPierceSteel() const;
 
 protected:

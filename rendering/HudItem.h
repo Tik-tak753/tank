@@ -11,6 +11,7 @@ class QPainter;
 class QStyleOptionGraphicsItem;
 class QWidget;
 
+// HudItem малює панель життів, зірок, ворогів і очок поверх сцени
 class HudItem : public QGraphicsItem
 {
 public:
